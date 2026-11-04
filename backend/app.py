@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from flask_pymongo import PyMongo
-from urllib.parse import quote_plus
 from flask_cors import CORS
 from shapely.geometry import Point
 import geopandas as gpd
@@ -19,17 +18,15 @@ from shapely.geometry import Point
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import MinMaxScaler
 import os
+from config import get_mongo_uri
+from mailer import send_email
 from report_classifier import classify_incident, update_graph_with_report
 from threading import Thread
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 
 import os
 from flask import Flask, request, jsonify
 from flask_pymongo import PyMongo
-from urllib.parse import quote_plus
 from flask_cors import CORS
 from shapely.geometry import Point
 import geopandas as gpd
@@ -65,9 +62,7 @@ app = Flask(__name__)
 #CORS(app)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-username = quote_plus("admin")
-password = quote_plus("Avalon@120")
-app.config["MONGO_URI"] = f"mongodb+srv://{username}:{password}@safesteps.qu6vixr.mongodb.net/safesteps?retryWrites=true&w=majority&appName=safesteps"
+app.config["MONGO_URI"] = get_mongo_uri()
 mongo = PyMongo(app)
 
 # Load from MongoDB
@@ -174,34 +169,16 @@ def signup():
     token = generate_token(result.inserted_id)
 
     # --- Send welcome/notification email to emergency contact ---
-    try:
-        smtp_server = "smtp.gmail.com"
-        smtp_port = 587
-        sender_email = "gptmax3002@gmail.com"
-        sender_password = "PuneethR0h!t@120"  # Use an App Password in production!
-        receiver_email = emergency_contact["email"]
-        subject = "You are an emergency contact for a new Safe Stride user"
-        body = (
-            f"Hello {emergency_contact['name']},\n\n"
-            f"You have been listed as an emergency contact for a new Safe Stride user ({name or email}).\n"
-            "You will be notified if your contact submits an emergency report from our app.\n\n"
-            "Regards,\n"
-            "Safe Stride Safety Team"
-        )
-        msg = MIMEMultipart()
-        msg["From"] = sender_email
-        msg["To"] = receiver_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
+    contact = emergency_contact or {}
+    body = (
+        f"Hello {contact.get('name', '')},\n\n"
+        f"You have been listed as an emergency contact for a new Safe Stride user ({name or email}).\n"
+        "You will be notified if your contact submits an emergency report from our app.\n\n"
+        "Regards,\n"
+        "Safe Stride Safety Team"
+    )
+    if send_email(contact.get("email"), "You are an emergency contact for a new Safe Stride user", body):
         print("Signup emergency contact email sent successfully!")
-    except Exception as e:
-        print("Failed to send signup emergency email:", str(e))
 
     return jsonify({"token": token})
 
@@ -347,41 +324,17 @@ def report_audio():
 
         Thread(target=run_update).start()
 
-        # Email configuration
-        smtp_server = "smtp.gmail.com"
-        smtp_port = 587
-        sender_email = "gptmax3002@gmail.com"
-        sender_password = "PuneethR0h!t@120"  # Use an App Password if using Gmail
-        receiver_email = emergency_contact
-        subject = "Emergency Report"
         body = (
-        f"Hello,\n\n"
-        "This is an email to inform you about an emergency report submitted by someone who has you as an emergency contact. "
-        "Please check your application for more information.\n\n"
-        f'The transcript of the audio shared is: "{transcript}"\n\n'
-        f"The location is: {lat}, {lon}\n\n"
-        "Regards,\n"
-        "Safe Stride Safety Team"
+            "Hello,\n\n"
+            "This is an email to inform you about an emergency report submitted by someone who has you as an emergency contact. "
+            "Please check your application for more information.\n\n"
+            f'The transcript of the audio shared is: "{transcript}"\n\n'
+            f"The location is: {lat}, {lon}\n\n"
+            "Regards,\n"
+            "Safe Stride Safety Team"
         )
-        # Create the email
-        msg = MIMEMultipart()
-        msg["From"] = sender_email
-        msg["To"] = receiver_email
-        msg["Subject"] = subject
-
-        msg.attach(MIMEText(body, "plain"))
-
-        # Send the email
-        try:
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()  # Secure the connection
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
+        if send_email(emergency_contact, "Emergency Report", body):
             print("Email sent successfully!")
-        except Exception as e:
-            print("Failed to send email:", str(e))
-        finally:
-            server.quit()
 
         # Step 4: Return fast response
         return jsonify({
