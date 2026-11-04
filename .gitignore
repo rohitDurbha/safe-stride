@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files hold credentials and must stay local
+.env
+.env.*
+!.env.example
