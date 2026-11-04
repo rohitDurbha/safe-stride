@@ -9,7 +9,7 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 ## Items
 
 - [ ] 1. Move every secret to environment variables, add `backend/.env.example`, delete `backend/.env`, `__pycache__` and `cache/` from the repo, and tighten `.gitignore`.
-  - [ ] a. Read the MongoDB URI and the SMTP sender settings from environment variables through one config module, send mail through one helper, add `backend/.env.example`, delete `backend/.env` and ignore env files.
+  - [x] a. Read the MongoDB URI and the SMTP sender settings from environment variables through one config module, send mail through one helper, add `backend/.env.example`, delete `backend/.env` and ignore env files.
   - [ ] b. Delete `backend/__pycache__` and `backend/cache/` from the repo and ignore Python build output and the osmnx cache.
   - [ ] c. Move the Firebase web config in `src/firebase/config.ts` to `VITE_` environment variables and add a root `.env.example`.
   - [ ] d. Fail fast with a clear message when a required backend variable is missing, and document local setup in the README.
@@ -25,5 +25,6 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 ## Needs Rohit
 
 - Rotate the Google API key, the MongoDB Atlas user password and the Gmail password that were committed to this repository, because git history still holds the old values.
-- Create a Gmail app password (or a free Resend key) and set it locally as described in `backend/.env.example`.
+- Create a Gmail app password (or a free Resend key) and set `SMTP_USER` and `SMTP_PASSWORD` locally as described in `backend/.env.example`.
+- Put the new Atlas connection string in `MONGO_URI` in your local `backend/.env`. The backend now refuses to start without it.
 - Vercel and Hugging Face accounts for item 8.
