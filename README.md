@@ -52,16 +52,10 @@ To connect this application to Firebase:
 2. Enable Authentication, Firestore, and Storage services
 3. Create a web app in your Firebase project
 4. Copy your Firebase config from the Firebase Console
-5. Update the `src/firebase/config.ts` file with your Firebase configuration
+5. Copy `.env.example` to `.env` in the project root and fill in the `VITE_FIREBASE_` values from your web app config
 
-```typescript
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
-};
+```sh
+cp .env.example .env
 ```
+
+The `.env` file is ignored by git, so the keys stay on your machine. You can also enter the values on the `/setup` page, which saves them in the browser.
