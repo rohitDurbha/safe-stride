@@ -34,3 +34,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# osmnx writes its OpenStreetMap download cache here when the backend runs
+backend/cache/
+cache/
