@@ -8,11 +8,11 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 
 ## Items
 
-- [ ] 1. Move every secret to environment variables, add `backend/.env.example`, delete `backend/.env`, `__pycache__` and `cache/` from the repo, and tighten `.gitignore`.
+- [x] 1. Move every secret to environment variables, add `backend/.env.example`, delete `backend/.env`, `__pycache__` and `cache/` from the repo, and tighten `.gitignore`.
   - [x] a. Read the MongoDB URI and the SMTP sender settings from environment variables through one config module, send mail through one helper, add `backend/.env.example`, delete `backend/.env` and ignore env files.
   - [x] b. Delete `backend/__pycache__` and `backend/cache/` from the repo and ignore Python build output and the osmnx cache.
   - [x] c. Move the Firebase web config in `src/firebase/config.ts` to `VITE_` environment variables and add a root `.env.example`.
-  - [ ] d. Fail fast with a clear message when a required backend variable is missing, and document local setup in the README.
+  - [x] d. Fail fast with a clear message when a required backend variable is missing, and document local setup in the README.
 - [ ] 2. Fix the Gemini integration. Move from the retired gemini-1.5-flash model and the deprecated google-generativeai SDK to the google-genai SDK with a current free-tier Flash model and JSON structured output, with a keyword fallback when the API fails.
 - [ ] 3. Fix the login crash for unknown emails, the emergency contact bug where alerts go to an empty global variable, remove the unauthenticated `/add_user` route, and require a token on `/report_audio`.
 - [ ] 4. Replace hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting.
@@ -26,6 +26,6 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 
 - Rotate the Google API key, the MongoDB Atlas user password and the Gmail password that were committed to this repository, because git history still holds the old values.
 - Create a Gmail app password (or a free Resend key) and set `SMTP_USER` and `SMTP_PASSWORD` locally as described in `backend/.env.example`.
-- Put the new Atlas connection string in `MONGO_URI` in your local `backend/.env`. The backend now refuses to start without it.
+- Put the new Atlas connection string in `MONGO_URI` and a freshly generated `SECRET_KEY` in your local `backend/.env`. The backend now refuses to start without either one, and it no longer accepts `dev_key` as a signing secret.
 - The Firebase web key that used to sit in `src/firebase/config.ts` is still in git history. Restrict it to your domains in the Google Cloud console (or rotate it), then copy `.env.example` to `.env` and fill in the `VITE_FIREBASE_` values. Set the same values in Vercel when the frontend is hosted.
 - Vercel and Hugging Face accounts for item 8.
