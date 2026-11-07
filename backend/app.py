@@ -18,7 +18,7 @@ from shapely.geometry import Point
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import MinMaxScaler
 import os
-from config import get_mongo_uri
+from config import check_required_settings, get_jwt_expiration, get_mongo_uri, get_secret_key
 from mailer import send_email
 from report_classifier import classify_incident, update_graph_with_report
 from threading import Thread
@@ -42,6 +42,10 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
+
+# Stop right away when a required setting is missing, before the slow
+# street graph download below.
+check_required_settings()
 
 # === Setup Graph and Edges ===
 GRAPH_PLACE = "Oakland, California, USA"
@@ -121,8 +125,8 @@ for u, v, k, data in G.edges(keys=True, data=True):
         data['weight'] = 1
 
 
-SECRET_KEY = os.getenv("SECRET_KEY", "dev_key")
-JWT_EXPIRATION = int(os.getenv("JWT_EXPIRATION", 3600))
+SECRET_KEY = get_secret_key()
+JWT_EXPIRATION = get_jwt_expiration()
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
