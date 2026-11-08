@@ -33,6 +33,7 @@ The backend reads its settings from `backend/.env`, which git ignores so your cr
 | `SECRET_KEY` | Yes | Long random string used to sign login tokens |
 | `JWT_EXPIRATION` | No | Login token lifetime in seconds, which defaults to 3600 |
 | `GOOGLE_API_KEY` | No | Google AI Studio key for the incident classifier |
+| `GEMINI_MODEL` | No | Gemini model for the incident classifier, which defaults to the free tier `gemini-3.1-flash-lite` |
 | `SMTP_HOST`, `SMTP_PORT` | No | Outgoing mail server, which defaults to Gmail on port 587 |
 | `SMTP_USER`, `SMTP_PASSWORD` | No | Mail account and app password for emergency contact alerts, and alerts are skipped when either one is empty |
 | `SMTP_SENDER` | No | Display address for alerts, which falls back to `SMTP_USER` |
