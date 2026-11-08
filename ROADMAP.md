@@ -14,7 +14,7 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
   - [x] c. Move the Firebase web config in `src/firebase/config.ts` to `VITE_` environment variables and add a root `.env.example`.
   - [x] d. Fail fast with a clear message when a required backend variable is missing, and document local setup in the README.
 - [ ] 2. Fix the Gemini integration. Move from the retired gemini-1.5-flash model and the deprecated google-generativeai SDK to the google-genai SDK with a current free-tier Flash model and JSON structured output, with a keyword fallback when the API fails.
-  - [ ] a. Move `report_classifier.py` to the google-genai SDK with a current free-tier Flash model read from a `GEMINI_MODEL` setting, ask for JSON structured output limited to the known crime categories, update `requirements.txt`, and add pytest coverage with a fake client.
+  - [x] a. Move `report_classifier.py` to the google-genai SDK with a current free-tier Flash model read from a `GEMINI_MODEL` setting, ask for JSON structured output limited to the known crime categories, update `requirements.txt`, and add pytest coverage with a fake client.
   - [ ] b. Add a keyword fallback that classifies reports when `GOOGLE_API_KEY` is missing or the Gemini call fails, with tests.
   - [ ] c. Add a GitHub Actions workflow that runs the backend tests on every push, plus a live Gemini smoke test that sends one sample report using the `GOOGLE_API_KEY` repository secret and is skipped when the secret is unavailable.
 - [ ] 3. Fix the npm audit vulnerabilities without `npm audit fix --force`, which downgrades firebase and `@tailwindcss/typography` and breaks the build. Each upgrade must keep the typecheck, lint and build passing.
