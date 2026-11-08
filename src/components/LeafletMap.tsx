@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { AlertTriangle, Locate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import DestinationInput from './map/DestinationInput';
+import DestinationInput, { LatLon } from './map/DestinationInput';
 import MapMarker from './map/MapMarker';
 import HeatmapLayer from './map/HeatmapLayer';
 import { toast } from '@/components/ui/use-toast';
@@ -31,6 +31,9 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   });
   const [destination, setDestination] = useState<string>("");
   const [source, setSource] = useState<string>("");
+  const [sourceCoords, setSourceCoords] = useState<LatLon | null>(null);
+  const [destinationCoords, setDestinationCoords] = useState<LatLon | null>(null);
+  const endpointMarkersRef = useRef<L.LayerGroup | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
   const [routeLine, setRouteLine] = useState<L.Polyline | null>(null);
   const [isMapInitialized, setIsMapInitialized] = useState(false);
@@ -322,17 +325,32 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
   };
 
   const calculateRoute = async () => {
-    if (!mapInstanceRef.current || !userLocation || !destination) return;
+    if (!mapInstanceRef.current || !destination.trim()) return;
+    // The typed starting point wins. Your own location is only the
+    // fallback when the starting point is left empty.
+    if (!source.trim() && !userLocation) return;
     setIsLoading(true);
-  
+
+    const params = new URLSearchParams({ destination: destination.trim() });
+    if (destinationCoords) {
+      params.set('end_lat', String(destinationCoords[0]));
+      params.set('end_lon', String(destinationCoords[1]));
+    }
+    if (sourceCoords) {
+      params.set('start_lat', String(sourceCoords[0]));
+      params.set('start_lon', String(sourceCoords[1]));
+    } else if (source.trim()) {
+      params.set('source', source.trim());
+    } else if (userLocation) {
+      params.set('start_lat', String(userLocation[0]));
+      params.set('start_lon', String(userLocation[1]));
+    }
+
     try {
-      const response = await fetch(
-        `http://127.0.0.1:5000/safe_path?destination=${encodeURIComponent(destination)}&start_lat=${userLocation[0]}&start_lon=${userLocation[1]}`
-      );
-  
-      if (!response.ok) throw new Error('Failed to fetch route');
-  
-      const data = await response.json();
+      const response = await fetch(`http://127.0.0.1:5000/safe_path?${params.toString()}`);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch route');
       console.log("Fetched data:", data);
   
       const listOfCoords: L.LatLngExpression[] = data.route.map(
@@ -357,6 +375,18 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         });
     
         setRouteLine(newLine);
+
+        // Mark where the route starts and ends so its direction is clear
+        endpointMarkersRef.current?.remove();
+        const first = listOfCoords[0] as [number, number];
+        const last = listOfCoords[listOfCoords.length - 1] as [number, number];
+        const endpoint = (pos: [number, number], color: string, label: string) =>
+          L.circleMarker(pos, { radius: 9, color: '#ffffff', weight: 3, fillColor: color, fillOpacity: 1 })
+            .bindTooltip(label, { permanent: true, direction: 'top', offset: [0, -10] });
+        endpointMarkersRef.current = L.layerGroup([
+          endpoint(first, '#16a34a', 'Start'),
+          endpoint(last, '#dc2626', 'End'),
+        ]).addTo(mapInstanceRef.current);
       }
 
       const summary = data.summary;
@@ -375,7 +405,9 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
       toast({
         variant: "destructive",
         title: "Route calculation failed",
-        description: "Could not calculate a safe route. Please try again."
+        description: error instanceof Error && error.message !== 'Failed to fetch'
+          ? error.message
+          : "Could not calculate a safe route. Please try again."
       });
     }
   
@@ -475,6 +507,8 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
         setDestination={setDestination}
         source={source}
         setSource={setSource}
+        setSourceCoords={setSourceCoords}
+        setDestinationCoords={setDestinationCoords}
         onCalculateRoute={calculateRoute}
         isLoading={isLoading}
       />

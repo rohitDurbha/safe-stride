@@ -3,11 +3,21 @@ import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
+export type LatLon = [number, number];
+
+interface Suggestion {
+  name: string;
+  coords: LatLon;
+}
+
 interface DestinationInputProps {
   destination: string;
   setDestination: (value: string) => void;
   source: string;
   setSource: (value: string) => void;
+  // Coordinates of a picked suggestion, or null once the text is edited
+  setSourceCoords: (coords: LatLon | null) => void;
+  setDestinationCoords: (coords: LatLon | null) => void;
   onCalculateRoute: () => void;
   isLoading: boolean;
 }
@@ -17,15 +27,17 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
   setDestination,
   source,
   setSource,
+  setSourceCoords,
+  setDestinationCoords,
   onCalculateRoute,
   isLoading,
 }) => {
-  const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
-  const [sourceSuggestions, setSourceSuggestions] = useState<string[]>([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<Suggestion[]>([]);
+  const [sourceSuggestions, setSourceSuggestions] = useState<Suggestion[]>([]);
   const destinationDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const sourceDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchSuggestions = async (query: string, setSuggestions: (suggestions: string[]) => void) => {
+  const fetchSuggestions = async (query: string, setSuggestions: (suggestions: Suggestion[]) => void) => {
     if (query.length < 3) return setSuggestions([]);
     try {
       const response = await axios.get(
@@ -43,8 +55,13 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
           },
         }
       );
-      const names = response.data.map((item: any) => item.display_name);
-      setSuggestions(names.slice(0, 5));
+      const suggestions: Suggestion[] = response.data
+        .map((item: { display_name: string; lat: string; lon: string }) => ({
+          name: item.display_name,
+          coords: [Number(item.lat), Number(item.lon)] as LatLon,
+        }))
+        .filter((item: Suggestion) => item.coords.every(Number.isFinite));
+      setSuggestions(suggestions.slice(0, 5));
     } catch (err) {
       console.error('Error fetching suggestions', err);
       setSuggestions([]);
@@ -54,6 +71,7 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
   const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setDestination(val);
+    setDestinationCoords(null);
     if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
     destinationDebounceRef.current = setTimeout(() => fetchSuggestions(val, setDestinationSuggestions), 300);
   };
@@ -61,12 +79,19 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
   const handleSourceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSource(val);
+    setSourceCoords(null);
     if (sourceDebounceRef.current) clearTimeout(sourceDebounceRef.current);
     sourceDebounceRef.current = setTimeout(() => fetchSuggestions(val, setSourceSuggestions), 300);
   };
 
-  const handleSuggestionClick = (suggestion: string, setValue: (value: string) => void, setSuggestions: (suggestions: string[]) => void) => {
-    setValue(suggestion);
+  const handleSuggestionClick = (
+    suggestion: Suggestion,
+    setValue: (value: string) => void,
+    setCoords: (coords: LatLon | null) => void,
+    setSuggestions: (suggestions: Suggestion[]) => void
+  ) => {
+    setValue(suggestion.name);
+    setCoords(suggestion.coords);
     setSuggestions([]);
   };
 
@@ -88,7 +113,7 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
             <Input
               value={source}
               onChange={handleSourceChange}
-              placeholder="Enter starting point..."
+              placeholder="Starting point (leave empty to use your location)"
               className="w-full text-sm h-8"
               autoComplete="off"
             />
@@ -97,10 +122,10 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
                 {sourceSuggestions.map((s, idx) => (
                   <li
                     key={idx}
-                    onClick={() => handleSuggestionClick(s, setSource, setSourceSuggestions)}
+                    onClick={() => handleSuggestionClick(s, setSource, setSourceCoords, setSourceSuggestions)}
                     className="px-3 py-1.5 hover:bg-accent cursor-pointer text-sm"
                   >
-                    {s}
+                    {s.name}
                   </li>
                 ))}
               </ul>
@@ -119,10 +144,10 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
                 {destinationSuggestions.map((s, idx) => (
                   <li
                     key={idx}
-                    onClick={() => handleSuggestionClick(s, setDestination, setDestinationSuggestions)}
+                    onClick={() => handleSuggestionClick(s, setDestination, setDestinationCoords, setDestinationSuggestions)}
                     className="px-3 py-1.5 hover:bg-accent cursor-pointer text-sm"
                   >
-                    {s}
+                    {s.name}
                   </li>
                 ))}
               </ul>
