@@ -17,13 +17,20 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
   - [ ] a. Move `report_classifier.py` to the google-genai SDK with a current free-tier Flash model read from a `GEMINI_MODEL` setting, ask for JSON structured output limited to the known crime categories, update `requirements.txt`, and add pytest coverage with a fake client.
   - [ ] b. Add a keyword fallback that classifies reports when `GOOGLE_API_KEY` is missing or the Gemini call fails, with tests.
   - [ ] c. Add a GitHub Actions workflow that runs the backend tests on every push, plus a live Gemini smoke test that sends one sample report using the `GOOGLE_API_KEY` repository secret and is skipped when the secret is unavailable.
-- [ ] 3. Fix the login crash for unknown emails, the emergency contact bug where alerts go to an empty global variable, remove the unauthenticated `/add_user` route, and require a token on `/report_audio`.
-- [ ] 4. Replace hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting.
-- [ ] 5. Debloat. Remove duplicate imports, choose one auth system (Flask JWT or Firebase, not both), delete unused shadcn components and npm packages, and drop the random mock lighting and foot traffic columns.
-- [ ] 6. Improve routing. Use length times (1 + lambda times risk) as the edge weight, use real OSM lighting tags, weight crimes by recency and time of day, and assign weights in one vectorized pass instead of a per-edge DataFrame scan.
-- [ ] 7. Cache the Oakland walking graph to a file so the server does not download it from OpenStreetMap on every start.
-- [ ] 8. Host for free. Frontend on Vercel, backend as a Docker Space on Hugging Face, MongoDB Atlas M0, and the Gemini free tier.
-- [ ] 9. Pytest coverage for routing and the classifier, Vitest for the map helpers, a CI workflow, and a real README. CI end to end tests start a throwaway MongoDB service seeded from `backend/crime_rate.csv` and never write to Atlas. The `MONGO_URI` secret is only used for a read only connection check.
+- [ ] 3. Fix the npm audit vulnerabilities without `npm audit fix --force`, which downgrades firebase and `@tailwindcss/typography` and breaks the build. Each upgrade must keep the typecheck, lint and build passing.
+  - [ ] a. Apply the non-breaking `npm audit fix` updates (form-data, glob, sucrase), remove the `lovable-tagger` dev dependency and its use in `vite.config.ts`, and regenerate `package-lock.json`. Delete `bun.lockb` so npm is the only package manager.
+  - [ ] b. Upgrade Vite to the current major with a matching `@vitejs/plugin-react-swc` to fix the esbuild dev server advisory.
+  - [ ] c. Upgrade `react-router-dom` to a patched 7.x release and adjust any routes or links the upgrade changes.
+  - [ ] d. Upgrade eslint and typescript-eslint to current releases so the vulnerable minimatch drops out, and fix any new lint errors.
+  - [ ] e. Upgrade firebase to the current release to drop the vulnerable `@grpc/grpc-js`. If item 6 removes Firebase auth, remove the package instead.
+  - [ ] f. Add `npm audit --audit-level=high` to the CI workflow so new high or critical advisories fail the build.
+- [ ] 4. Fix the login crash for unknown emails, the emergency contact bug where alerts go to an empty global variable, remove the unauthenticated `/add_user` route, and require a token on `/report_audio`.
+- [ ] 5. Replace hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting.
+- [ ] 6. Debloat. Remove duplicate imports, choose one auth system (Flask JWT or Firebase, not both), delete unused shadcn components and npm packages, and drop the random mock lighting and foot traffic columns.
+- [ ] 7. Improve routing. Use length times (1 + lambda times risk) as the edge weight, use real OSM lighting tags, weight crimes by recency and time of day, and assign weights in one vectorized pass instead of a per-edge DataFrame scan.
+- [ ] 8. Cache the Oakland walking graph to a file so the server does not download it from OpenStreetMap on every start.
+- [ ] 9. Host for free. Frontend on Vercel, backend as a Docker Space on Hugging Face, MongoDB Atlas M0, and the Gemini free tier.
+- [ ] 10. Pytest coverage for routing and the classifier, Vitest for the map helpers, a CI workflow, and a real README. CI end to end tests start a throwaway MongoDB service seeded from `backend/crime_rate.csv` and never write to Atlas. The `MONGO_URI` secret is only used for a read only connection check.
 
 ## Needs Rohit
 
@@ -33,4 +40,4 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 - The Firebase web key that used to sit in `src/firebase/config.ts` is still in git history. Restrict it to your domains in the Google Cloud console (or rotate it), then copy `.env.example` to `.env` and fill in the `VITE_FIREBASE_` values. Set the same values in Vercel when the frontend is hosted.
 - Done. `GOOGLE_API_KEY` and `MONGO_URI` are saved as repository secrets for the CI workflow.
 - GitHub Actions runners have changing IP addresses, so the read only Atlas check in CI only works after adding `0.0.0.0/0` under Network Access in Atlas. Until then that check is skipped and everything else still runs.
-- Vercel and Hugging Face accounts for item 8.
+- Vercel and Hugging Face accounts for item 9.
