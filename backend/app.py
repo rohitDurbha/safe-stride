@@ -1,129 +1,46 @@
+from datetime import datetime, timedelta
+from threading import Thread
+
+import bcrypt
+import jwt
+import osmnx as ox
+from bson.objectid import ObjectId
 from flask import Flask, request, jsonify
-from flask_pymongo import PyMongo
 from flask_cors import CORS
-from shapely.geometry import Point
-import geopandas as gpd
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
-import osmnx as ox
-import networkx as nx
+from flask_pymongo import PyMongo
 from geopy.geocoders import Nominatim
-import osmnx as ox
-import networkx as nx
-import geopandas as gpd
-import pandas as pd
-import numpy as np
-from shapely.geometry import Point
-from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import MinMaxScaler
-import os
+
 from config import check_required_settings, get_jwt_expiration, get_mongo_uri, get_secret_key
 from heatmap import heatmap_points
 from mailer import send_email
-from report_classifier import classify_incident, update_graph_with_report
-from threading import Thread
-
-
-import os
-from flask import Flask, request, jsonify
-from flask_pymongo import PyMongo
-from flask_cors import CORS
-from shapely.geometry import Point
-import geopandas as gpd
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
-import osmnx as ox
-import networkx as nx
-from geopy.geocoders import Nominatim
-from sklearn.cluster import DBSCAN
-from shapely.geometry import LineString
-import bcrypt
-import jwt
-from datetime import datetime, timedelta
-from bson.objectid import ObjectId
+from report_classifier import classify_incident
+from routing import SafetyRouter, crimes_from_records, is_night, local_now
 
 # Stop right away when a required setting is missing, before the slow
 # street graph download below.
 check_required_settings()
 
-# === Setup Graph and Edges ===
+# === Street graph and safety scores ===
 GRAPH_PLACE = "Oakland, California, USA"
+# Keep the OSM "lit" tag on streets so night routes can prefer lit streets.
+ox.settings.useful_tags_way = sorted(set(ox.settings.useful_tags_way) | {"lit"})
 G = ox.graph_from_place(GRAPH_PLACE, network_type='walk')
-edges = ox.graph_to_gdfs(G, nodes=False).reset_index()
-edges["edge_id"] = edges.apply(lambda row: f"{row['u']}_{row['v']}_{row['key']}", axis=1)
-nodes = ox.graph_to_gdfs(G, edges=False)
+router = SafetyRouter.from_osmnx(G)
 emergency_contact = ''
-# Load and preprocess crime data
-#url = "/Users/spartan/Desktop/desktop/USA/hackathon/safe-stride-navigator/backend/crime_rate.csv"
-#crime_df = pd.read_csv(url)
-#crime_df['lon'] = crime_df['Location'].str.extract(r'POINT \((-?\d+\.\d+)')[0].astype(float)
-#crime_df['lat'] = crime_df['Location'].str.extract(r'(-?\d+\.\d+)\)')[0].astype(float)
-#crime_df.dropna(subset=['lat', 'lon'], inplace=True)
 
 # === Flask Setup ===
 app = Flask(__name__)
-#CORS(app)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 app.config["MONGO_URI"] = get_mongo_uri()
 mongo = PyMongo(app)
 
-# Load from MongoDB
-crime_docs = list(mongo.db.crimes.find())
-crime_df = pd.DataFrame(crime_docs)
-
-# Extract lat/lon from Location field (same as before)
-crime_df['lon'] = crime_df['Location'].str.extract(r'POINT \((-?\d+\.\d+)')[0].astype(float)
-crime_df['lat'] = crime_df['Location'].str.extract(r'(-?\d+\.\d+)\)')[0].astype(float)
-crime_df.dropna(subset=['lat', 'lon'], inplace=True)
-
-crime_gdf = gpd.GeoDataFrame(crime_df, geometry=gpd.points_from_xy(crime_df['lon'], crime_df['lat']), crs="EPSG:4326").to_crs(epsg=3857)
-edges = edges.to_crs(epsg=3857)
-
-# Cluster crimes
-coords = np.array(list(zip(crime_gdf.geometry.x, crime_gdf.geometry.y)))
-crime_gdf['cluster'] = DBSCAN(eps=100, min_samples=2).fit(coords).labels_
-
-# Severity scores
-severity_map = {
-    'FELONY ASSAULT': 0.9, 'PETTY THEFT': 0.3, 'BURG - RESIDENTIAL': 0.7,
-    'MISDEMEANOR ASSAULT': 0.5, 'ARSON': 0.8, 'ROBBERY': 0.85,
-    'NARCOTICS': 0.4, 'KIDNAPPING': 0.95, 'FORCIBLE RAPE': 1.0, 'HOMICIDE': 1.0,
-    'CHILD ABUSE': 0.85, 'OTHER': 0.4
-}
-crime_gdf['severity_score'] = crime_gdf['CRIMETYPE'].map(severity_map).fillna(0.4)
-
-# Join crime to edges
-edges['geometry_buffered'] = edges.buffer(25)
-edges = edges.set_geometry('geometry_buffered')
-join = gpd.sjoin(crime_gdf, edges[['edge_id', 'geometry_buffered']], how='inner', predicate='within')
-avg_crime = join.groupby('edge_id')['severity_score'].mean()
-edges['crime_score'] = edges['edge_id'].map(avg_crime).fillna(0)
-scaler = MinMaxScaler()
-edges['crime_score'] = scaler.fit_transform(edges[['crime_score']])
-edges = edges.set_geometry('geometry')
-edges.drop(columns='geometry_buffered', inplace=True)
-
-# Mock extra features + compute safety score
-np.random.seed(42)
-edges['foot_traffic'] = np.random.uniform(0.2, 1.0, len(edges))
-edges['lighting'] = np.random.uniform(0.3, 1.0, len(edges))
-edges['institution_score'] = np.random.uniform(0.4, 1.0, len(edges))
-
-def compute_safety_score(row):
-    return 0.4 * (1 - row['crime_score']) + 0.2 * row['foot_traffic'] + 0.2 * row['lighting'] + 0.2 * row['institution_score']
-
-edges['safety_score'] = edges.apply(compute_safety_score, axis=1)
-
-# Apply weights to graph
-for u, v, k, data in G.edges(keys=True, data=True):
-    try:
-        row = edges.loc[(edges['u'] == u) & (edges['v'] == v)].iloc[0]
-        data['weight'] = 1 - row['safety_score']
-    except:
-        data['weight'] = 1
+# Score every street from the crime dataset plus the reports people have
+# already sent, so reported incidents still count after a restart.
+crime_docs = mongo.db.crimes.find({}, {"_id": 0, "CRIMETYPE": 1, "Location": 1, "DATETIME": 1})
+report_docs = mongo.db.incident_reports.find({}, {"_id": 0, "incident_type": 1, "location": 1, "timestamp": 1})
+scored = router.add_records(*crimes_from_records(crime_docs, report_docs))
+print(f"Scored {scored} street segments from crime data")
 
 
 SECRET_KEY = get_secret_key()
@@ -247,25 +164,13 @@ def get_route():
             orig = ox.nearest_nodes(G, X=start_lon, Y=start_lat)
             dest = ox.nearest_nodes(G, X=end_lon, Y=end_lat)
 
-            path = nx.shortest_path(G, orig, dest, weight='weight')
+            # Night routes weigh night-time crimes more and avoid unlit
+            # streets. The client can force a period with ?period=day|night.
+            period = (request.args.get("period") or "").strip().lower()
+            night = is_night(local_now().hour) if period not in ("day", "night") else period == "night"
 
-            full_coords = []
-
-            for u, v in zip(path[:-1], path[1:]):
-                data = G.get_edge_data(u, v)
-                if data:
-                    # Get the first edge with geometry or fallback to straight line
-                    edge_data = list(data.values())[0]
-                    if 'geometry' in edge_data:
-                        full_coords += list(edge_data['geometry'].coords)
-                    else:
-                        # Fallback to straight line
-                        full_coords += [(G.nodes[u]['x'], G.nodes[u]['y']), (G.nodes[v]['x'], G.nodes[v]['y'])]
-
-            # Flip (lon, lat) to (lat, lon)
-            latlon_coords = [[y, x] for (x, y) in full_coords]
-
-            return jsonify({"route": latlon_coords})
+            result = router.route(orig, dest, night=night)
+            return jsonify({"route": result.coords, "summary": result.summary()})
         except Exception as e:
             return jsonify({"error": f"Error finding path: {str(e)}"}), 500
     except Exception as e:
@@ -320,10 +225,8 @@ def report_audio():
         # Step 3: Kick off background thread to update graph
         def run_update():
             try:
-                update_graph_with_report(
-                    incident_type, lat, lon, edges, G, severity_map, compute_safety_score
-                )
-                print("Graph updated successfully.")
+                updated = router.add_records([float(lon)], [float(lat)], [incident_type], [local_now()])
+                print(f"Graph updated, {updated} street segments rescored.")
             except Exception as e:
                 print("Error updating graph in background:", e)
 

@@ -4,13 +4,11 @@ flask_cors
 geopandas
 numpy
 pandas
-scikit-learn
 osmnx
 networkx
 geopy
 shapely
-pyarrow
 bcrypt
 PyJWT
-python-dotenv 
+python-dotenv
 google-genai

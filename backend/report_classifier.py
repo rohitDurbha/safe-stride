@@ -1,5 +1,4 @@
-"""Incident classification for spoken safety reports, plus the graph update
-that follows a new report.
+"""Incident classification for spoken safety reports.
 
 The classifier asks Gemini, through the google-genai SDK, to score a
 transcript against the known Oakland crime categories and return JSON that
@@ -7,9 +6,6 @@ matches a fixed schema. The model name comes from the GEMINI_MODEL setting.
 """
 import json
 import os
-
-from shapely.geometry import Point
-import geopandas as gpd
 
 import config  # noqa: F401  (loads backend/.env before the settings are read)
 
@@ -136,132 +132,3 @@ def classify_incident(transcript: str, client=None) -> str:
         return UNKNOWN
 
     return parse_matches(response.text or "")
-
-
-def update_graph_with_report(crime_type, lat, lon, edges, G, severity_map, compute_safety_score):
-    print("DEBUG: Updating graph for", crime_type, lat, lon)
-
-    if edges.crs is None:
-        print("DEBUG: edges had no CRS, setting to EPSG:3857")
-        edges.set_crs("EPSG:3857", inplace=True)
-
-    if edges.geometry.name != "geometry":
-        edges = edges.set_geometry("geometry")
-
-    try:
-        pt = Point(lon, lat)
-        pt_gdf = gpd.GeoDataFrame(geometry=[pt], crs="EPSG:4326")
-        pt_gdf = pt_gdf.to_crs(edges.crs)
-    except Exception as e:
-        raise ValueError(f"Error transforming point to CRS: {e}")
-
-    if pt_gdf.geometry.is_empty.any():
-        raise ValueError("Transformed point geometry is empty")
-
-    print("DEBUG: Transformed point geometry:", pt_gdf.geometry.iloc[0])
-    print("DEBUG: Calculating distance from edges...")
-
-    nearby = edges[edges.geometry.distance(pt_gdf.geometry.iloc[0]) < 30]
-    print("DEBUG: Nearby edges found:", len(nearby))
-
-    base_score = severity_map.get(crime_type, 0.4)
-    learning_rate = 0.2
-
-    for idx in nearby.index:
-        current = edges.loc[idx, 'crime_score']
-        bump = learning_rate * base_score
-        edges.loc[idx, 'crime_score'] = min(current + bump, 1.0)
-
-    edges['safety_score'] = edges.apply(compute_safety_score, axis=1)
-
-    for u, v, k, data in G.edges(keys=True, data=True):
-        try:
-            row = edges.loc[(edges['u'] == u) & (edges['v'] == v)].iloc[0]
-            data['weight'] = 1 - row['safety_score']
-        except Exception as e:
-            print(f"DEBUG: Failed to update edge ({u}, {v}, {k}): {e}")
-            data['weight'] = 1
-
-    # Create a copy of the dataframe to avoid modifying the original
-    edges_to_save = edges.copy()
-    
-    def handle_list_value(x, col_name):
-        if not isinstance(x, list):
-            return x
-            
-        # Special handling for specific columns
-        if col_name == 'osmid':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'reversed':
-            return x[0] if len(x) > 0 else False
-        elif col_name == 'highway':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'name':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'oneway':
-            return x[0] if len(x) > 0 else False
-        elif col_name == 'lanes':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'maxspeed':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'length':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'bridge':
-            return x[0] if len(x) > 0 else False
-        elif col_name == 'tunnel':
-            return x[0] if len(x) > 0 else False
-        elif col_name == 'access':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'service':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'junction':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'ref':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'surface':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'width':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'area':
-            return x[0] if len(x) > 0 else False
-        elif col_name == 'landuse':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'boundary':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'admin_level':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'natural':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'waterway':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'aerialway':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'barrier':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'man_made':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'z_order':
-            return x[0] if len(x) > 0 else None
-        elif col_name == 'other_tags':
-            return str(x) if len(x) > 0 else None
-        else:
-            # For any other column, convert to string
-            return str(x)
-
-    # Apply the list handling function to all object-type columns
-    for col in edges_to_save.columns:
-        if edges_to_save[col].dtype == 'object':
-            edges_to_save[col] = edges_to_save[col].apply(lambda x: handle_list_value(x, col))
-
-    # Ensure geometry column is properly handled
-    if 'geometry' in edges_to_save.columns:
-        edges_to_save = edges_to_save.set_geometry('geometry')
-
-    try:
-        edges_to_save.to_parquet("edges_updated.parquet")
-    except Exception as e:
-        print(f"Error saving to parquet: {e}")
-        # Fallback to saving without geometry
-        edges_to_save.drop(columns=['geometry']).to_parquet("edges_updated.parquet")
-
-    return len(nearby)
