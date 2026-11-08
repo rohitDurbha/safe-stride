@@ -51,6 +51,14 @@ cd backend
 python -m pytest
 ```
 
+## How routes are chosen
+
+The routing code lives in `backend/routing.py`. Each crime in the dataset, and each report people send through the app, adds risk to the streets around it. The risk fades smoothly over about 120 m, so streets right next to a hotspot score highest and the next block over scores a little. Each crime's weight depends on how dangerous it is for someone on foot (a robbery counts far more than a car break-in), how recent it is (older incidents fade with a 90 day half-life but never disappear), and whether it happened in the same part of the day as the walk.
+
+The cost of walking a street is its length plus 300 m for each unit of risk, and at night streets that OpenStreetMap marks as unlit cost more. A route may be at most 1.5 times as long as the plain shortest path. If the safest route is longer than that, the safety weight is halved until the route fits, so you always get the safest route that is still a sensible walk. The `/safe_path` response includes a `summary` with the distance, the detour compared with the shortest path, and how much less crime the route passes. Add `period=day` or `period=night` to override the time of day.
+
+Reports are saved in MongoDB and replayed into the graph when the server starts, so they keep counting after a restart.
+
 ## What technologies are used for this project?
 
 This project is built with:
