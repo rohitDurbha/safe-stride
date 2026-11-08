@@ -1,68 +1,142 @@
-import google.generativeai as genai
-from dotenv import load_dotenv
-import os
+"""Incident classification for spoken safety reports, plus the graph update
+that follows a new report.
+
+The classifier asks Gemini, through the google-genai SDK, to score a
+transcript against the known Oakland crime categories and return JSON that
+matches a fixed schema. The model name comes from the GEMINI_MODEL setting.
+"""
 import json
+import os
+
 from shapely.geometry import Point
 import geopandas as gpd
 
-# Load environment variables
-load_dotenv()
+import config  # noqa: F401  (loads backend/.env before the settings are read)
 
-# Configure Gemini API
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel(model_name="models/gemini-1.5-flash")
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
+UNKNOWN = "UNKNOWN"
 
-def classify_incident(transcript: str) -> str:
-    crime_categories = [
-        "FELONY ASSAULT", "PETTY THEFT", "BURG - RESIDENTIAL", "MISDEMEANOR ASSAULT", "ARSON",
-        "BURG - AUTO", "DUI", "VANDALISM", "GRAND THEFT", "STOLEN VEHICLE", "WEAPONS", "FRAUD",
-        "OTHER", "DISORDERLY CONDUCT", "BURG - COMMERCIAL", "FELONY WARRANT", "THREATS",
-        "POSSESSION - STOLEN PROPERTY", "ROBBERY", "RECOVERED O/S STOLEN", "DOMESTIC VIOLENCE",
-        "NARCOTICS", "KIDNAPPING", "FORGERY & COUNTERFEITING", "FORCIBLE RAPE", "HOMICIDE",
-        "STOLEN AND RECOVERED VEHICLE", "CURFEW & LOITERING", "OTHER SEX OFFENSES", "BRANDISHING",
-        "CHILD ABUSE", "BURG - OTHER", "MISCELLANEOUS TRAFFIC CRIME", "EMBEZZLEMENT",
-        "RECOVERED VEHICLE - OAKLAND STOLEN", "GAMBLING", "PROSTITUTION", "INCIDENT TYPE",
-        "ENVIRONMENTAL CRIME", "MISDEMEANOR WARRANT"
-    ]
+CRIME_CATEGORIES = (
+    "FELONY ASSAULT", "PETTY THEFT", "BURG - RESIDENTIAL", "MISDEMEANOR ASSAULT", "ARSON",
+    "BURG - AUTO", "DUI", "VANDALISM", "GRAND THEFT", "STOLEN VEHICLE", "WEAPONS", "FRAUD",
+    "OTHER", "DISORDERLY CONDUCT", "BURG - COMMERCIAL", "FELONY WARRANT", "THREATS",
+    "POSSESSION - STOLEN PROPERTY", "ROBBERY", "RECOVERED O/S STOLEN", "DOMESTIC VIOLENCE",
+    "NARCOTICS", "KIDNAPPING", "FORGERY & COUNTERFEITING", "FORCIBLE RAPE", "HOMICIDE",
+    "STOLEN AND RECOVERED VEHICLE", "CURFEW & LOITERING", "OTHER SEX OFFENSES", "BRANDISHING",
+    "CHILD ABUSE", "BURG - OTHER", "MISCELLANEOUS TRAFFIC CRIME", "EMBEZZLEMENT",
+    "RECOVERED VEHICLE - OAKLAND STOLEN", "GAMBLING", "PROSTITUTION",
+    "ENVIRONMENTAL CRIME", "MISDEMEANOR WARRANT",
+)
 
-    prompt = f"""
-You are an incident classification expert. Given this voice transcript:
+# JSON schema the model must follow. The enum keeps answers inside the
+# category list, so the result can be used without any cleanup.
+RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "matches": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "enum": list(CRIME_CATEGORIES)},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": ["category", "confidence"],
+            },
+        },
+    },
+    "required": ["matches"],
+}
 
-"{transcript}"
+PROMPT_TEMPLATE = """You classify spoken safety reports from people walking in Oakland.
+Pick every crime category that fits the transcript below and give each one a
+confidence between 0 and 1. Return an empty list if none of them fit.
 
-Your job is to classify it using the following categories:
-{', '.join(crime_categories)}
-
-Respond in JSON format like this:
-{{ "CATEGORY1": confidence_score, "CATEGORY2": confidence_score, ... }}
-
-Only include categories relevant to the content.
-Confidence score must be between 0.0 and 1.0.
+Transcript:
+{transcript}
 """
 
-    try:
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
-        print("Gemini Raw Response:", response_text)
+_client = None
 
-        if response_text.startswith("```json"):
-            response_text = response_text.replace("```json", "").replace("```", "").strip()
 
+def gemini_model():
+    return os.getenv("GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL
+
+
+def _default_client():
+    """Build the Gemini client once, or return None when no key is set."""
+    global _client
+    if _client is None:
+        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+        if not api_key:
+            return None
+        from google import genai
+
+        _client = genai.Client(api_key=api_key)
+    return _client
+
+
+def parse_matches(payload):
+    """Return the best category from the model's JSON reply, or UNKNOWN.
+
+    Anything outside the category list or the 0 to 1 range is ignored, so a
+    malformed reply can never put an unexpected label into the database.
+    """
+    if isinstance(payload, str):
         try:
-            result = json.loads(response_text)
-        except json.JSONDecodeError as json_error:
-            print("JSON parse error:", json_error)
-            return "UNKNOWN"
+            payload = json.loads(payload)
+        except json.JSONDecodeError:
+            return UNKNOWN
+    if not isinstance(payload, dict):
+        return UNKNOWN
 
-        if not isinstance(result, dict):
-            raise ValueError("Model output is not a valid dictionary")
+    best, best_score = UNKNOWN, -1.0
+    for match in payload.get("matches") or []:
+        if not isinstance(match, dict):
+            continue
+        category = match.get("category")
+        score = match.get("confidence")
+        if category not in CRIME_CATEGORIES or isinstance(score, bool):
+            continue
+        if not isinstance(score, (int, float)) or not 0 <= score <= 1:
+            continue
+        if score > best_score:
+            best, best_score = category, float(score)
+    return best
 
-        top_category = max(result.items(), key=lambda x: x[1])[0]
-        return top_category
 
-    except Exception as e:
-        print("Error:", e)
-        return "UNKNOWN"
+def classify_incident(transcript: str, client=None) -> str:
+    """Return the most likely crime category for a transcript.
+
+    Returns UNKNOWN when the transcript is empty, no API key is configured,
+    the Gemini call fails, or the reply does not name a known category.
+    """
+    if not transcript or not transcript.strip():
+        return UNKNOWN
+
+    client = client or _default_client()
+    if client is None:
+        print("GOOGLE_API_KEY is not set, so the report was not classified.")
+        return UNKNOWN
+
+    from google.genai import types
+
+    try:
+        response = client.models.generate_content(
+            model=gemini_model(),
+            contents=PROMPT_TEMPLATE.format(transcript=transcript.strip()),
+            config=types.GenerateContentConfig(
+                temperature=0,
+                response_mime_type="application/json",
+                response_json_schema=RESPONSE_SCHEMA,
+            ),
+        )
+    except Exception as error:  # network errors, quota limits, bad keys
+        print("Gemini classification failed:", error)
+        return UNKNOWN
+
+    return parse_matches(response.text or "")
+
 
 def update_graph_with_report(crime_type, lat, lon, edges, G, severity_map, compute_safety_score):
     print("DEBUG: Updating graph for", crime_type, lat, lon)
