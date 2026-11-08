@@ -358,6 +358,18 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     
         setRouteLine(newLine);
       }
+
+      const summary = data.summary;
+      if (summary && typeof summary.distance_m === 'number') {
+        const km = (summary.distance_m / 1000).toFixed(1);
+        const avoided = Math.round((summary.exposure_reduction ?? 0) * 100);
+        toast({
+          title: `Safer ${summary.period} route, ${km} km`,
+          description: avoided > 0
+            ? `Passes ${avoided}% less reported crime than the shortest path, which is ${(summary.shortest_distance_m / 1000).toFixed(1)} km.`
+            : "This is already the safest reasonable way to walk there.",
+        });
+      }
     } catch (error) {
       console.error("API fetch error:", error);
       toast({
