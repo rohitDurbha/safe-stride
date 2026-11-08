@@ -11,6 +11,7 @@ from flask_pymongo import PyMongo
 from geopy.geocoders import Nominatim
 
 from config import check_required_settings, get_jwt_expiration, get_mongo_uri, get_secret_key
+from geocoding import EndpointError, resolve_endpoints
 from heatmap import heatmap_points
 from mailer import send_email
 from report_classifier import classify_incident
@@ -143,39 +144,34 @@ def home():
 
 
 @app.route("/safe_path", methods=["GET"])
-def get_route(): 
-    start_lat = float(request.args.get("start_lat"))
-    start_lon = float(request.args.get("start_lon"))
-    destination = request.args.get("destination")
-    print(destination)
-
-    if not (start_lat and start_lon and destination):
-        return jsonify({"error": "Missing parameters"}), 400
+def get_route():
+    try:
+        geolocator = Nominatim(user_agent="safestride", timeout=10)
+        (start_lat, start_lon), (end_lat, end_lon) = resolve_endpoints(request.args, geolocator)
+    except EndpointError as e:
+        return jsonify({"error": str(e)}), e.status
+    except Exception as e:
+        return jsonify({"error": f"Geocoding error: {str(e)}"}), 502
 
     try:
-        geolocator = Nominatim(user_agent="nav_app", timeout=10)  # Increased timeout to 10 seconds
-        location = geolocator.geocode(destination)
-        if not location:
-            return jsonify({"error": "Destination not found"}), 404
+        orig = ox.nearest_nodes(G, X=start_lon, Y=start_lat)
+        dest = ox.nearest_nodes(G, X=end_lon, Y=end_lat)
 
-        end_lat, end_lon = location.latitude, location.longitude
+        # Night routes weigh night-time crimes more and avoid unlit
+        # streets. The client can force a period with ?period=day|night.
+        period = (request.args.get("period") or "").strip().lower()
+        night = is_night(local_now().hour) if period not in ("day", "night") else period == "night"
 
-        try:
-            orig = ox.nearest_nodes(G, X=start_lon, Y=start_lat)
-            dest = ox.nearest_nodes(G, X=end_lon, Y=end_lat)
-
-            # Night routes weigh night-time crimes more and avoid unlit
-            # streets. The client can force a period with ?period=day|night.
-            period = (request.args.get("period") or "").strip().lower()
-            night = is_night(local_now().hour) if period not in ("day", "night") else period == "night"
-
-            result = router.route(orig, dest, night=night)
-            return jsonify({"route": result.coords, "summary": result.summary()})
-        except Exception as e:
-            return jsonify({"error": f"Error finding path: {str(e)}"}), 500
+        result = router.route(orig, dest, night=night)
+        return jsonify({
+            "route": result.coords,
+            "start": [start_lat, start_lon],
+            "end": [end_lat, end_lon],
+            "summary": result.summary(),
+        })
     except Exception as e:
-        return jsonify({"error": f"Geocoding error: {str(e)}"}), 500
-    
+        return jsonify({"error": f"Error finding path: {str(e)}"}), 500
+
 
 @app.route("/add_user", methods=["POST"])
 def add_user():
