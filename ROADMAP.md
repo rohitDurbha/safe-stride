@@ -6,6 +6,12 @@ Work moves one step at a time, so each item is split into small steps that land 
 
 The public repository still holds a Google API key in `backend/.env` and hardcoded MongoDB Atlas and Gmail passwords in `backend/app.py`. Removing them from the current code does not remove them from git history, so every one of those credentials has to be rotated (see Needs Rohit below).
 
+## Bug fixes
+
+Take these before the next step of the numbered items, one per session.
+
+- [ ] Show route and error toasts above the map. After a route is found, the "Safer day route" toast (and the error toasts) render behind the Leaflet map and cannot be seen. The toast viewport in `src/components/ui/toast.tsx` uses `z-[100]`, while Leaflet panes and controls use z-index values from 400 to 1000 and the route form uses `z-[1000]`. Raise the toast viewport (and the sonner toaster) above the map, check that the route summary, the heatmap error toast and the location toasts are all visible on the home and heatmap pages, and add a Playwright or Vitest check that the toast sits above `.leaflet-container`.
+
 ## Items
 
 - [x] 1. Move every secret to environment variables, add `backend/.env.example`, delete `backend/.env`, `__pycache__` and `cache/` from the repo, and tighten `.gitignore`.
