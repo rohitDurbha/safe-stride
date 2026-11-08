@@ -19,6 +19,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import MinMaxScaler
 import os
 from config import check_required_settings, get_jwt_expiration, get_mongo_uri, get_secret_key
+from heatmap import heatmap_points
 from mailer import send_email
 from report_classifier import classify_incident, update_graph_with_report
 from threading import Thread
@@ -353,59 +354,15 @@ def report_audio():
 
 @app.route("/heatmap_data", methods=["GET"])
 def heatmap_data():
-    points = []
-
-    # 1. Pull first 150 from static 'crimes' collection
-    crimes = list(mongo.db.crimes.find({}, {"_id": 0, "CRIMETYPE": 1, "Location": 1}).limit(150))
-    for crime in crimes:
-        loc = crime.get("Location", "")
-        if loc.startswith("POINT"):
-            try:
-                # Remove "POINT (" and ")"
-                loc = loc.replace("POINT (", "").replace(")", "")
-                
-                # Now split the coordinates
-                lon, lat = map(float, loc.split())
-
-                points.append({
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon, lat]  # Correct GeoJSON format [lon, lat]
-                    },
-                    "properties": {
-                        "type": crime["CRIMETYPE"],
-                        "intensity": 0.7  # Adjust as needed
-                    }
-                })
-            except Exception as e:
-                print(f"Error parsing crime location: {e}")
-                continue
-
-    # 2. Pull first 150 from recent 'incident_reports' collection
-    incidents = list(mongo.db.incident_reports.find({}, {"_id": 0, "incident_type": 1, "location": 1}).limit(100))
-    for inc in incidents:
-        loc = inc.get("location", {})
-        try:
-            lat = float(loc.get("lat", 0))  # Ensure valid float
-            lon = float(loc.get("lon", 0))  # Ensure valid float
-
-            points.append({
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [lon, lat]  # Correct GeoJSON format [lon, lat]
-                },
-                "properties": {
-                    "type": inc["incident_type"],
-                    "intensity": 0.9  # Live reports get high intensity
-                }
-            })
-        except Exception as e:
-            print(f"Error parsing incident report location: {e}")
-            continue
-
-    return jsonify(points)
+    # Records with a missing location are skipped, so ask only for ones that have one.
+    crimes = mongo.db.crimes.find(
+        {"Location": {"$type": "string"}},
+        {"_id": 0, "CRIMETYPE": 1, "Location": 1},
+    ).limit(150)
+    reports = mongo.db.incident_reports.find(
+        {}, {"_id": 0, "incident_type": 1, "location": 1}
+    ).limit(100)
+    return jsonify(heatmap_points(crimes, reports))
 
 @app.route("/update_profile", methods=["PUT"])
 def update_profile():
