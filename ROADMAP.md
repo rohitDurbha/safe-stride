@@ -10,7 +10,7 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 
 Take these before the next step of the numbered items, one per session.
 
-- [ ] Show route and error toasts above the map. After a route is found, the "Safer day route" toast (and the error toasts) render behind the Leaflet map and cannot be seen. The toast viewport in `src/components/ui/toast.tsx` uses `z-[100]`, while Leaflet panes and controls use z-index values from 400 to 1000 and the route form uses `z-[1000]`. Raise the toast viewport (and the sonner toaster) above the map, check that the route summary, the heatmap error toast and the location toasts are all visible on the home and heatmap pages, and add a Playwright or Vitest check that the toast sits above `.leaflet-container`.
+- [x] Show route and error toasts above the map. The Radix toast viewport and the sonner toaster now share one `TOAST_Z` layer in `src/lib/layers.ts` that sits above every Leaflet pane and control, and a Vitest check (`npm test`) reads `leaflet.css` to keep it that way.
 
 ## Items
 

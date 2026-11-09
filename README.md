@@ -14,6 +14,8 @@ cp .env.example .env   # then fill in the VITE_FIREBASE_ values
 npm run dev
 ```
 
+Run the frontend tests with `npm test`. They use Vitest and need no backend or Firebase settings.
+
 ### Backend
 
 ```sh
