@@ -34,7 +34,7 @@ The backend reads its settings from `backend/.env`, which git ignores so your cr
 | `MONGO_URI` | Yes | MongoDB Atlas connection string, including the database name |
 | `SECRET_KEY` | Yes | Long random string used to sign login tokens |
 | `JWT_EXPIRATION` | No | Login token lifetime in seconds, which defaults to 3600 |
-| `GOOGLE_API_KEY` | No | Google AI Studio key for the incident classifier |
+| `GOOGLE_API_KEY` | No | Google AI Studio key for the incident classifier, and reports are classified with keyword rules when it is empty |
 | `GEMINI_MODEL` | No | Gemini model for the incident classifier, which defaults to the free tier `gemini-3.1-flash-lite` |
 | `SMTP_HOST`, `SMTP_PORT` | No | Outgoing mail server, which defaults to Gmail on port 587 |
 | `SMTP_USER`, `SMTP_PASSWORD` | No | Mail account and app password for emergency contact alerts, and alerts are skipped when either one is empty |
@@ -60,6 +60,10 @@ The routing code lives in `backend/routing.py`. Each crime in the dataset, and e
 The cost of walking a street is its length plus 300 m for each unit of risk, and at night streets that OpenStreetMap marks as unlit cost more. A route may be at most 1.5 times as long as the plain shortest path. If the safest route is longer than that, the safety weight is halved until the route fits, so you always get the safest route that is still a sensible walk. The `/safe_path` response includes a `summary` with the distance, the detour compared with the shortest path, and how much less crime the route passes. Add `period=day` or `period=night` to override the time of day. The start is the typed starting point (`source`, or `start_lat` and `start_lon` when a suggestion is picked), and your current location is used only when the starting point is left empty.
 
 Reports are saved in MongoDB and replayed into the graph when the server starts, so they keep counting after a restart.
+
+## How reports are classified
+
+When someone sends a spoken report, `backend/report_classifier.py` asks Gemini to match the transcript against the Oakland crime categories and keeps the answer with the highest confidence. If `GOOGLE_API_KEY` is not set, or the Gemini call fails, or the reply is not valid JSON, the backend falls back to the keyword rules in `backend/keyword_classifier.py`. Those rules check the most specific and serious categories first, so a report about someone pulling a gun to take a phone is filed as a robbery and a stolen car is not filed as petty theft. A report that matches no rule is saved as `UNKNOWN`, which means the app keeps working offline and in tests without any API key.
 
 ## What technologies are used for this project?
 
