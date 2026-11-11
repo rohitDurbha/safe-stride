@@ -3,11 +3,16 @@
 The classifier asks Gemini, through the google-genai SDK, to score a
 transcript against the known Oakland crime categories and return JSON that
 matches a fixed schema. The model name comes from the GEMINI_MODEL setting.
+
+When no GOOGLE_API_KEY is set, or the Gemini call fails or returns something
+that is not valid JSON, the transcript is classified with the offline keyword
+rules in keyword_classifier instead.
 """
 import json
 import os
 
 import config  # noqa: F401  (loads backend/.env before the settings are read)
+from keyword_classifier import keyword_category
 
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 UNKNOWN = "UNKNOWN"
@@ -101,19 +106,28 @@ def parse_matches(payload):
     return best
 
 
+def _is_json_reply(text):
+    try:
+        return isinstance(json.loads(text), dict)
+    except (TypeError, ValueError):
+        return False
+
+
 def classify_incident(transcript: str, client=None) -> str:
     """Return the most likely crime category for a transcript.
 
-    Returns UNKNOWN when the transcript is empty, no API key is configured,
-    the Gemini call fails, or the reply does not name a known category.
+    Gemini is used when a key is configured. When it is not, or the call
+    fails, or the reply is not a JSON object, the keyword rules decide.
+    A valid Gemini reply that names no known category stays UNKNOWN, since
+    the model has already judged that nothing fits.
     """
     if not transcript or not transcript.strip():
         return UNKNOWN
 
     client = client or _default_client()
     if client is None:
-        print("GOOGLE_API_KEY is not set, so the report was not classified.")
-        return UNKNOWN
+        print("GOOGLE_API_KEY is not set, so the report was classified with keywords.")
+        return keyword_category(transcript)
 
     from google.genai import types
 
@@ -127,8 +141,13 @@ def classify_incident(transcript: str, client=None) -> str:
                 response_json_schema=RESPONSE_SCHEMA,
             ),
         )
+        text = response.text or ""
     except Exception as error:  # network errors, quota limits, bad keys
-        print("Gemini classification failed:", error)
-        return UNKNOWN
+        print("Gemini classification failed, so keywords were used instead:", error)
+        return keyword_category(transcript)
 
-    return parse_matches(response.text or "")
+    if not _is_json_reply(text):
+        print("Gemini returned a reply that is not JSON, so keywords were used instead.")
+        return keyword_category(transcript)
+
+    return parse_matches(text)

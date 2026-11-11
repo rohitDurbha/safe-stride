@@ -63,15 +63,36 @@ def test_schema_only_allows_known_categories():
     assert "INCIDENT TYPE" not in enum
 
 
-def test_api_errors_return_unknown():
+def test_api_errors_fall_back_to_keywords():
     client = FakeClient(error=RuntimeError("quota exceeded"))
-    assert rc.classify_incident("someone is following me", client=client) == rc.UNKNOWN
+    assert rc.classify_incident("someone is following me", client=client) == "THREATS"
 
 
-def test_missing_api_key_skips_the_call(monkeypatch):
+def test_missing_api_key_falls_back_to_keywords(monkeypatch):
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.setattr(rc, "_client", None)
-    assert rc.classify_incident("someone is following me") == rc.UNKNOWN
+    assert rc.classify_incident("someone is following me") == "THREATS"
+
+
+def test_fallback_stays_unknown_when_no_keyword_matches():
+    client = FakeClient(error=RuntimeError("timeout"))
+    assert rc.classify_incident("the street lights are out", client=client) == rc.UNKNOWN
+
+
+@pytest.mark.parametrize("text", ["not json at all", "", None, "[]"])
+def test_replies_that_are_not_a_json_object_fall_back_to_keywords(text):
+    client = FakeClient(text)
+    assert rc.classify_incident("they stole my car", client=client) == "STOLEN VEHICLE"
+
+
+def test_a_valid_reply_with_no_category_is_trusted_over_keywords():
+    client = FakeClient(reply())
+    assert rc.classify_incident("they stole my car", client=client) == rc.UNKNOWN
+
+
+def test_gemini_answer_wins_when_it_disagrees_with_keywords():
+    client = FakeClient(reply(("PETTY THEFT", 0.8)))
+    assert rc.classify_incident("they stole my car", client=client) == "PETTY THEFT"
 
 
 def test_blank_transcript_is_not_sent():
