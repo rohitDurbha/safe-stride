@@ -127,3 +127,14 @@ def test_invalid_entries_are_skipped_but_valid_ones_still_count():
         ]
     }
     assert rc.parse_matches(payload) == "ARSON"
+
+
+def test_request_gemini_reply_returns_raw_text_and_lets_errors_through():
+    client = FakeClient(reply(("ARSON", 0.7)))
+    assert json.loads(rc.request_gemini_reply("the dumpster is on fire", client)) == {
+        "matches": [{"category": "ARSON", "confidence": 0.7}]
+    }
+
+    failing = FakeClient(error=RuntimeError("quota exceeded"))
+    with pytest.raises(RuntimeError, match="quota exceeded"):
+        rc.request_gemini_reply("the dumpster is on fire", failing)

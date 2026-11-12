@@ -113,6 +113,27 @@ def _is_json_reply(text):
         return False
 
 
+def request_gemini_reply(transcript: str, client) -> str:
+    """Send one transcript to Gemini and return the raw reply text.
+
+    Errors are not caught here, so callers can tell a real Gemini answer
+    apart from a fallback. classify_incident wraps this with the keyword
+    rules, and the live smoke test calls it directly.
+    """
+    from google.genai import types
+
+    response = client.models.generate_content(
+        model=gemini_model(),
+        contents=PROMPT_TEMPLATE.format(transcript=transcript.strip()),
+        config=types.GenerateContentConfig(
+            temperature=0,
+            response_mime_type="application/json",
+            response_json_schema=RESPONSE_SCHEMA,
+        ),
+    )
+    return response.text or ""
+
+
 def classify_incident(transcript: str, client=None) -> str:
     """Return the most likely crime category for a transcript.
 
@@ -129,19 +150,8 @@ def classify_incident(transcript: str, client=None) -> str:
         print("GOOGLE_API_KEY is not set, so the report was classified with keywords.")
         return keyword_category(transcript)
 
-    from google.genai import types
-
     try:
-        response = client.models.generate_content(
-            model=gemini_model(),
-            contents=PROMPT_TEMPLATE.format(transcript=transcript.strip()),
-            config=types.GenerateContentConfig(
-                temperature=0,
-                response_mime_type="application/json",
-                response_json_schema=RESPONSE_SCHEMA,
-            ),
-        )
-        text = response.text or ""
+        text = request_gemini_reply(transcript, client)
     except Exception as error:  # network errors, quota limits, bad keys
         print("Gemini classification failed, so keywords were used instead:", error)
         return keyword_category(transcript)
