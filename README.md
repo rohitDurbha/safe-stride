@@ -53,6 +53,10 @@ cd backend
 python -m pytest
 ```
 
+These tests use a fake Gemini client and never touch the network. A separate live smoke test sends one sample report to the real Gemini API, and it only runs when you ask for it with `python -m pytest -m live` and `GOOGLE_API_KEY` is set (otherwise it is skipped). It calls Gemini without the keyword fallback, so a bad key, a retired model name or an exhausted quota shows up as a failure instead of a silent switch to keywords.
+
+The CI workflow in `.github/workflows/ci.yml` runs the backend tests on every push and pull request. When they pass, it runs the live smoke test with the `GOOGLE_API_KEY` repository secret, and it skips that check when the secret is not available to the run, such as on pull requests from forks.
+
 ## How routes are chosen
 
 The routing code lives in `backend/routing.py`. Each crime in the dataset, and each report people send through the app, adds risk to the streets around it. The risk fades smoothly over about 120 m, so streets right next to a hotspot score highest and the next block over scores a little. Each crime's weight depends on how dangerous it is for someone on foot (a robbery counts far more than a car break-in), how recent it is (older incidents fade with a 90 day half-life but never disappear), and whether it happened in the same part of the day as the walk.
