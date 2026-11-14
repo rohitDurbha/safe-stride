@@ -4,7 +4,7 @@ SafeStride suggests safer walking routes around Oakland by weighting streets wit
 
 ## Local setup
 
-You will need Node.js 18 or newer for the frontend and Python 3.10 or newer for the backend.
+You will need Node.js 20.19 or newer (Vite 8 needs it) for the frontend and Python 3.10 or newer for the backend.
 
 ### Frontend
 
