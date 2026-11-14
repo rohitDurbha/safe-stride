@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MapView from '@/components/MapView';
 import IncidentReporter from '@/components/IncidentReporter';
 import { Navigation, Flag, UserRound } from "lucide-react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 const Home = () => {
   const [userName, setUserName] = useState<string>(() => {
