@@ -24,12 +24,14 @@ Take these before the next step of the numbered items, one per session.
   - [x] b. Add a keyword fallback that classifies reports when `GOOGLE_API_KEY` is missing or the Gemini call fails, with tests. The rules live in `backend/keyword_classifier.py` and also cover replies that are not valid JSON.
   - [x] c. Add a GitHub Actions workflow that runs the backend tests on every push, plus a live Gemini smoke test that sends one sample report using the `GOOGLE_API_KEY` repository secret and is skipped when the secret is unavailable. The workflow lives in `.github/workflows/ci.yml`, and the smoke test runs locally with `python -m pytest -m live`.
 - [ ] 3. Fix the npm audit vulnerabilities without `npm audit fix --force`, which downgrades firebase and `@tailwindcss/typography` and breaks the build. Each upgrade must keep the typecheck, lint and build passing.
-  - [ ] a. Apply the non-breaking `npm audit fix` updates (form-data, glob, sucrase), remove the `lovable-tagger` dev dependency and its use in `vite.config.ts`, and regenerate `package-lock.json`. Delete `bun.lockb` so npm is the only package manager.
+  - [x] a. Apply the non-breaking `npm audit fix` updates (form-data, glob, sucrase), remove the `lovable-tagger` dev dependency and its use in `vite.config.ts`, and regenerate `package-lock.json`. Delete `bun.lockb` so npm is the only package manager. The audit fix also moved eslint to 9.39, so typescript-eslint moved to the latest 8.x to keep lint running. The gptengineer script and Lovable placeholder tags in `index.html` are gone too.
   - [ ] b. Upgrade Vite to the current major with a matching `@vitejs/plugin-react-swc` to fix the esbuild dev server advisory.
   - [ ] c. Upgrade `react-router-dom` to a patched 7.x release and adjust any routes or links the upgrade changes.
-  - [ ] d. Upgrade eslint and typescript-eslint to current releases so the vulnerable minimatch drops out, and fix any new lint errors.
+  - [ ] d. Upgrade eslint and typescript-eslint to current releases so the vulnerable minimatch drops out, and fix the lint errors. `npm run lint` already reported 15 errors (mostly `any` types in the pages and API helpers) before this item started, so clear those too and then add lint to CI.
   - [ ] e. Upgrade firebase to the current release to drop the vulnerable `@grpc/grpc-js`. If item 6 removes Firebase auth, remove the package instead.
-  - [ ] f. Add `npm audit --audit-level=high` to the CI workflow so new high or critical advisories fail the build.
+  - [ ] f. Upgrade Vitest to the current major to drop the vulnerable `tinypool` and `@vitest/mocker`, and keep `npm test` passing.
+  - [ ] g. Upgrade zod to 4.x (used by the shadcn form helpers) and check `@tailwindcss/typography` for a release with a patched `postcss-selector-parser`. If none exists, add an npm `overrides` entry for it.
+  - [ ] h. Add `npm audit --audit-level=high` to the CI workflow so new high or critical advisories fail the build.
 - [ ] 4. Fix the login crash for unknown emails, the emergency contact bug where alerts go to an empty global variable, remove the unauthenticated `/add_user` route, and require a token on `/report_audio`.
 - [ ] 5. Replace hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting.
 - [ ] 6. Debloat. Remove duplicate imports, choose one auth system (Flask JWT or Firebase, not both), delete unused shadcn components and npm packages, and drop the random mock lighting and foot traffic columns.
