@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Navigation } from "lucide-react";
 import { registerUser, loginUser, onAuthChanged } from '@/api/auth';
+import { errorMessage } from '@/lib/errors';
 import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -67,10 +68,11 @@ const Login = () => {
           } else {
             navigate('/home');
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Signup error:', err);
+          const message = errorMessage(err);
           
-          if (err.message && err.message.includes('User already exists')) {
+          if (message.includes('User already exists')) {
             toast({
               title: "Account already exists",
               description: "This email is already registered. Please try logging in instead.",
@@ -80,7 +82,7 @@ const Login = () => {
             setTimeout(() => {
               setIsSignUp(false);
             }, 2000);
-          } else if (err.message === "Failed to fetch") {
+          } else if (message === "Failed to fetch") {
             setNetworkError(true);
             setError("Network error: Cannot connect to the server. Please check your internet connection.");
             toast({
@@ -91,10 +93,10 @@ const Login = () => {
           } else {
             toast({
               title: "Signup failed",
-              description: err.message || "Could not create your account. Please try again.",
+              description: message || "Could not create your account. Please try again.",
               variant: "destructive",
             });
-            setError(err.message || "Signup failed. Please try again.");
+            setError(message || "Signup failed. Please try again.");
           }
         }
       } else {
@@ -110,10 +112,10 @@ const Login = () => {
           } else {
             navigate('/home');
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Login error:', err);
           
-          if (err.message === "Failed to fetch") {
+          if (errorMessage(err) === "Failed to fetch") {
             setNetworkError(true);
             setError("Network error: Cannot connect to the server. Please check your internet connection.");
             toast({
@@ -131,14 +133,14 @@ const Login = () => {
           }
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Authentication error:', err);
       toast({
         title: "Authentication error",
-        description: err.message || "An unexpected error occurred",
+        description: errorMessage(err, "An unexpected error occurred"),
         variant: "destructive",
       });
-      setError(err.message || 'Authentication failed. Please try again later.');
+      setError(errorMessage(err, 'Authentication failed. Please try again later.'));
     } finally {
       setIsLoading(false);
     }

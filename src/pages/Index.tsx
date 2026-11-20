@@ -11,7 +11,7 @@ const Index = () => {
   const [backendStatus, setBackendStatus] = useState<{
     checking: boolean;
     isConnected: boolean | null;
-    error: any | null;
+    error: unknown;
   }>({
     checking: true,
     isConnected: null,

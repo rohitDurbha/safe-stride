@@ -6,6 +6,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateUserProfile } from '@/api/auth';
+import { errorMessage } from '@/lib/errors';
 import { toast } from "@/hooks/use-toast";
 import { UserRound, Home, Navigation } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -81,14 +82,15 @@ const Profile = () => {
         setContactName(user.emergency_contact?.name || '');
         setContactEmail(user.emergency_contact?.email || '');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Profile update error:", error);
+      const message = errorMessage(error, "Failed to update profile");
       
-      setError(error.message || "Failed to update profile");
+      setError(message);
       
       toast({
         title: "Update Failed",
-        description: error.message || "Failed to update profile",
+        description: message,
         variant: "destructive",
       });
     } finally {
