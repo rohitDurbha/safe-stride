@@ -65,7 +65,13 @@ export async function loginUser(email: string, password: string) {
   }
 }
 
-export async function onAuthChanged(callback: (user: any) => void) {
+// Shape of the user returned by the backend /me route.
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
+export async function onAuthChanged(callback: (user: AuthUser | null) => void) {
   const token = localStorage.getItem("token");
   if (!token) return callback(null);
 

@@ -5,12 +5,36 @@ import { Card } from "@/components/ui/card";
 import { Mic, MapPin, Square } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
+// The browser speech API is not in the TypeScript DOM library yet, so these
+// cover only the parts this component touches.
+interface SpeechRecognitionResultEvent {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+interface StoredUser {
+  email?: string;
+  name?: string;
+  emergency_contact?: { name?: string; email?: string };
+}
+
 const IncidentReporter = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const [userData, setUserData] = useState<StoredUser | null>(null);
   
   useEffect(() => {
     getCurrentLocation();
@@ -58,7 +82,11 @@ const IncidentReporter = () => {
   };
 
   const startRecording = () => {
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const speechWindow = window as Window & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const SpeechRecognition = speechWindow.webkitSpeechRecognition || speechWindow.SpeechRecognition;
     if (!SpeechRecognition) {
       toast({
         title: "Speech Recognition Not Supported",
@@ -73,13 +101,13 @@ const IncidentReporter = () => {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionResultEvent) => {
       const transcript = event.results[0][0].transcript;
       console.log("Transcribed:", transcript);
       submitReport(transcript);
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: Event) => {
       console.error("Speech recognition error:", event);
       toast({
         title: "Speech Recognition Failed",
