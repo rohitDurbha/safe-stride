@@ -8,28 +8,34 @@ interface MapViewProps {
 }
 
 const MapView: React.FC<MapViewProps> = ({ showHeatmap: initialShowHeatmap }) => {
-  const [showHeatmap, setShowHeatmap] = useState(initialShowHeatmap !== undefined ? initialShowHeatmap : false);
+  const [showHeatmap, setShowHeatmap] = useState(initialShowHeatmap ?? false);
+  const [lastPropHeatmap, setLastPropHeatmap] = useState(initialShowHeatmap);
   const [mapMounted, setMapMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
+
+  // When the parent passes a new showHeatmap value, adopt it during render
+  // rather than from an effect, so the map never paints the stale view first.
+  if (initialShowHeatmap !== lastPropHeatmap) {
+    setLastPropHeatmap(initialShowHeatmap);
     if (initialShowHeatmap !== undefined) {
       setShowHeatmap(initialShowHeatmap);
     }
-    
+  }
+
+  useEffect(() => {
     // Mark component as mounted after a short delay to ensure DOM is ready
     const timer = setTimeout(() => {
       setMapMounted(true);
-      
+
       // Dispatch resize event when component mounts to ensure proper dimensions
       window.dispatchEvent(new Event('resize'));
     }, 500);
-    
+
     return () => {
       clearTimeout(timer);
       setMapMounted(false);
     };
-  }, [initialShowHeatmap]);
+  }, []);
 
   return (
     <div 
