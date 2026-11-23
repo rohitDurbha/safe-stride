@@ -1,6 +1,6 @@
 # SafeStride Roadmap
 
-Work moves one step at a time, so each item is split into small steps that land over several days.
+Each session finishes a whole item when it can, and items stay split into steps so progress is easy to follow. The Live link section comes before everything else, because bugs are easier to find and fix while a link is up.
 
 ## Urgent
 
@@ -11,6 +11,24 @@ The public repository still holds a Google API key in `backend/.env` and hardcod
 Take these before the next step of the numbered items, one per session.
 
 - [x] Show route and error toasts above the map. The Radix toast viewport and the sonner toaster now share one `TOAST_Z` layer in `src/lib/layers.ts` that sits above every Leaflet pane and control, and a Vitest check (`npm test`) reads `leaflet.css` to keep it that way.
+
+## Live link
+
+Live link: not deployed yet. The backend goes to a Hugging Face Docker Space and the frontend goes to Vercel, both deployed from GitHub Actions with the `HF_TOKEN` and `VERCEL_TOKEN` repository secrets, so nothing is deployed by hand.
+
+- [ ] Put SafeStride on a free live link.
+  - [ ] a. Replace the hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting. This was item 5.
+  - [ ] b. Cache the Oakland walking graph to a file at image build time, so the server starts without downloading it from OpenStreetMap. This was item 8.
+  - [ ] c. Keep Flask JWT as the only login and remove Firebase auth, so the hosted frontend needs no Firebase keys. This is the auth half of item 6.
+  - [ ] d. Add a backend Dockerfile for a Hugging Face Docker Space that serves the app with gunicorn on port 7860 and locks CORS to the frontend origin. Add a workflow that pushes it to the Space with `HF_TOKEN` and copies `MONGO_URI`, `SECRET_KEY` and `GOOGLE_API_KEY` from the repository secrets into the Space secrets.
+  - [ ] e. Add a workflow that builds the frontend with `VITE_API_URL` pointing at the Space and deploys it to Vercel with `VERCEL_TOKEN` on every push to main.
+  - [ ] f. Add a check after each deploy that loads the site, asks the backend for a route and fails the run when either breaks. Then put both live links at the top of the README and at the top of this section.
+
+## Bugs found on the live site
+
+Every session opens the live link first, adds anything broken here, and fixes these before the numbered items.
+
+- None logged yet, because the site is not live.
 
 ## Items
 
@@ -35,11 +53,11 @@ Take these before the next step of the numbered items, one per session.
   - [x] i. Clear the React Compiler warnings outside the map. The unused shadcn carousel and sidebar, the `use-mobile` hook and the `embla-carousel-react` package are gone, which also removed the `Math.random` skeleton. `Profile.tsx` and `IncidentReporter.tsx` now read the cached user once through `readStoredUser` in `src/lib/storedUser.ts` (covered by `storedUser.test.ts`) in a lazy `useState` initializer, and `MapView.tsx` adopts a changed `showHeatmap` prop during render instead of in an effect.
   - [ ] j. Clear the remaining React Compiler warnings in `LeafletMap.tsx` (functions used before they are declared, refs read during render, a mutated prop and two missing effect dependencies), then set `set-state-in-effect`, `immutability`, `refs` and `purity` back to errors in `eslint.config.js`.
 - [ ] 4. Fix the login crash for unknown emails, the emergency contact bug where alerts go to an empty global variable, remove the unauthenticated `/add_user` route, and require a token on `/report_audio`.
-- [ ] 5. Replace hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting.
+- [ ] 5. Moved into step a of the Live link section. Replace hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting.
 - [ ] 6. Debloat. Remove duplicate imports, choose one auth system (Flask JWT or Firebase, not both), delete unused shadcn components and npm packages, and drop the random mock lighting and foot traffic columns.
 - [x] 7. Improve routing. Spread each crime over nearby streets with a distance falloff, weight crimes by pedestrian severity, recency and time of day, use the OSM `lit` tag at night, score every street in one spatial index pass, and cap detours at 1.5 times the shortest path. Reports are replayed from MongoDB at startup, and the unused `edges_updated.parquet` snapshot is gone. Edge cost is length times one plus the darkness penalty, plus a safety weight times log(1 + exposure). This replaced the planned length times (1 + lambda times risk), because that formula made short edges next to hotspots almost free.
-- [ ] 8. Cache the Oakland walking graph to a file so the server does not download it from OpenStreetMap on every start.
-- [ ] 9. Host for free. Frontend on Vercel, backend as a Docker Space on Hugging Face, MongoDB Atlas M0, and the Gemini free tier.
+- [ ] 8. Moved into step b of the Live link section. Cache the Oakland walking graph to a file so the server does not download it from OpenStreetMap on every start.
+- [ ] 9. Covered by the Live link section, so tick it when that section is done. Host for free. Frontend on Vercel, backend as a Docker Space on Hugging Face, MongoDB Atlas M0, and the Gemini free tier.
 - [ ] 10. Pytest coverage for routing and the classifier, Vitest for the map helpers, a CI workflow, and a real README. CI end to end tests start a throwaway MongoDB service seeded from `backend/crime_rate.csv` and never write to Atlas. The `MONGO_URI` secret is only used for a read only connection check.
 
 ## Needs Rohit
@@ -50,4 +68,5 @@ Take these before the next step of the numbered items, one per session.
 - The Firebase web key that used to sit in `src/firebase/config.ts` is still in git history. Restrict it to your domains in the Google Cloud console (or rotate it), then copy `.env.example` to `.env` and fill in the `VITE_FIREBASE_` values. Set the same values in Vercel when the frontend is hosted.
 - Done. `GOOGLE_API_KEY` and `MONGO_URI` are saved as repository secrets for the CI workflow.
 - GitHub Actions runners have changing IP addresses, so the read only Atlas check in CI only works after adding `0.0.0.0/0` under Network Access in Atlas. Until then that check is skipped and everything else still runs.
-- Vercel and Hugging Face accounts for item 9.
+- Done. `VERCEL_TOKEN` and `HF_TOKEN` are saved as repository secrets for the Live link section.
+- Add a `SECRET_KEY` repository secret with a long random string, for example the output of `python -c "import secrets; print(secrets.token_urlsafe(48))"`. The hosted backend refuses to start without it.
