@@ -1,9 +1,10 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Mic, MapPin, Square } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { readStoredUser } from "@/lib/storedUser";
 
 // The browser speech API is not in the TypeScript DOM library yet, so these
 // cover only the parts this component touches.
@@ -23,38 +24,14 @@ interface SpeechRecognitionLike {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
-interface StoredUser {
-  email?: string;
-  name?: string;
-  emergency_contact?: { name?: string; email?: string };
-}
-
 const IncidentReporter = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const [userData, setUserData] = useState<StoredUser | null>(null);
+  const [userData] = useState(() => readStoredUser());
   
-  useEffect(() => {
-    getCurrentLocation();
-    
-    // Get user data from localStorage
-    const storedUserData = localStorage.getItem('safeStrideUser');
-    if (storedUserData) {
-      try {
-        const parsedData = JSON.parse(storedUserData);
-        setUserData(parsedData);
-        console.log("Loaded user data:", parsedData);
-      } catch (err) {
-        console.error("Error parsing user data:", err);
-      }
-    } else {
-      console.log("No user data found in localStorage");
-    }
-  }, []);
-
-  const getCurrentLocation = () => {
+  const getCurrentLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -79,7 +56,11 @@ const IncidentReporter = () => {
         variant: "destructive"
       });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, [getCurrentLocation]);
 
   const startRecording = () => {
     const speechWindow = window as Window & {

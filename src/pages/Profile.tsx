@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateUserProfile } from '@/api/auth';
 import { errorMessage } from '@/lib/errors';
+import { readStoredUser } from '@/lib/storedUser';
 import { toast } from "@/hooks/use-toast";
 import { UserRound, Home, Navigation } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -21,33 +22,19 @@ import {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
+  const [storedUser] = useState(() => readStoredUser());
+  const [email, setEmail] = useState(storedUser?.email || '');
+  const [contactName, setContactName] = useState(storedUser?.emergency_contact?.name || '');
+  const [contactEmail, setContactEmail] = useState(storedUser?.emergency_contact?.email || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    const userData = localStorage.getItem('safeStrideUser');
-    if (!userData) {
-      if (!localStorage.getItem('token')) {
-        navigate('/login');
-        return;
-      }
+    if (!storedUser && !localStorage.getItem('token')) {
+      navigate('/login');
     }
-
-    try {
-      if (userData) {
-        const user = JSON.parse(userData);
-        setEmail(user.email || '');
-        setContactName(user.emergency_contact?.name || '');
-        setContactEmail(user.emergency_contact?.email || '');
-      }
-    } catch (e) {
-      console.error("Error parsing user data:", e);
-    }
-  }, [navigate]);
+  }, [storedUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,9 +62,8 @@ const Profile = () => {
       }
       
       // Re-fetch from localStorage to ensure UI is in sync
-      const updatedUserData = localStorage.getItem('safeStrideUser');
-      if (updatedUserData) {
-        const user = JSON.parse(updatedUserData);
+      const user = readStoredUser();
+      if (user) {
         setEmail(user.email || '');
         setContactName(user.emergency_contact?.name || '');
         setContactEmail(user.emergency_contact?.email || '');
