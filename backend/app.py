@@ -3,7 +3,6 @@ from threading import Thread
 
 import bcrypt
 import jwt
-import osmnx as ox
 from bson.objectid import ObjectId
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -25,8 +24,9 @@ check_required_settings()
 # === Street graph and safety scores ===
 # Read the walking graph from the file baked into the image (or built on the
 # first local start) instead of downloading it from OpenStreetMap every time.
-G, _graph_source = load_street_graph()
-router = SafetyRouter.from_osmnx(G)
+streets, _graph_source = load_street_graph()
+G = streets.graph
+router = SafetyRouter.from_pack(streets)
 emergency_contact = ''
 
 # === Flask Setup ===
@@ -154,8 +154,8 @@ def get_route():
         return jsonify({"error": f"Geocoding error: {str(e)}"}), 502
 
     try:
-        orig = ox.nearest_nodes(G, X=start_lon, Y=start_lat)
-        dest = ox.nearest_nodes(G, X=end_lon, Y=end_lat)
+        orig = streets.nearest_node(start_lon, start_lat)
+        dest = streets.nearest_node(end_lon, end_lat)
 
         # Night routes weigh night-time crimes more and avoid unlit
         # streets. The client can force a period with ?period=day|night.

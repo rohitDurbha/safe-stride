@@ -1,7 +1,7 @@
 /**
  * The one place the frontend learns where the Flask backend lives.
  *
- * Set VITE_API_URL at build time (for example the Hugging Face Space URL).
+ * Set VITE_API_URL at build time (the hosted site uses /api on the same domain).
  * Local development falls back to the Flask dev server on port 5000.
  */
 export const DEFAULT_API_URL = "http://127.0.0.1:5000";

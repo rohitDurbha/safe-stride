@@ -1,0 +1,2 @@
+# Runtime packages for the Python function in api/index.py.
+-r backend/requirements.txt

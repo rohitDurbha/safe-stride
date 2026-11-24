@@ -1,15 +1,14 @@
+# What the server needs at runtime. The hosted function installs only these,
+# so keep heavy packages such as osmnx and geopandas in requirements-build.txt.
 flask
 flask_pymongo
 flask_cors
-geopandas
 numpy
-pandas
-osmnx
 networkx
-geopy
 shapely
+pyproj
+geopy
 bcrypt
 PyJWT
 python-dotenv
 google-genai
-gunicorn

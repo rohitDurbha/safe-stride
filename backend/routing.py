@@ -243,12 +243,25 @@ def crimes_from_records(crime_docs, report_docs):
     return lons, lats, types, times
 
 
-def to_metric_points(lons, lats):
-    import geopandas as gpd
+_TO_METRIC = None
 
-    if not lons:
+
+def to_metric_xy(lons, lats):
+    """Project WGS84 lon/lat lists to METRIC_CRS x/y arrays in metres."""
+    global _TO_METRIC
+    if _TO_METRIC is None:
+        from pyproj import Transformer
+
+        _TO_METRIC = Transformer.from_crs("EPSG:4326", METRIC_CRS, always_xy=True)
+    xs, ys = _TO_METRIC.transform(np.asarray(lons, dtype=float), np.asarray(lats, dtype=float))
+    return np.atleast_1d(xs), np.atleast_1d(ys)
+
+
+def to_metric_points(lons, lats):
+    if not len(lons):
         return np.array([], dtype=object)
-    return gpd.GeoSeries(gpd.points_from_xy(lons, lats), crs="EPSG:4326").to_crs(METRIC_CRS).values
+    xs, ys = to_metric_xy(lons, lats)
+    return shapely.points(xs, ys)
 
 
 @dataclass
@@ -303,11 +316,9 @@ class SafetyRouter:
             data.setdefault("length", 0.0)
 
     @classmethod
-    def from_osmnx(cls, graph, now=None):
-        import osmnx as ox
-
-        edges = ox.graph_to_gdfs(graph, nodes=False).to_crs(METRIC_CRS)
-        return cls(graph, edges.index.tolist(), edges.geometry.values, now=now)
+    def from_pack(cls, pack, now=None):
+        """Build a router from a street_graph.StreetPack."""
+        return cls(pack.graph, pack.edge_keys, pack.metric_geoms, now=now)
 
     def _now(self):
         return self.now or local_now()

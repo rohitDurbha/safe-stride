@@ -1,6 +1,6 @@
 # SafeStride
 
-Live site: https://safe-stride-seven.vercel.app (the frontend is up, and the backend at https://rohitdurbha-safe-stride.hf.space goes live once the `SECRET_KEY` repository secret is added)
+Live site: https://safe-stride-seven.vercel.app (the React app and, under `/api`, the Flask backend)
 
 SafeStride suggests safer walking routes around Oakland by weighting streets with crime data and community reports. The frontend is a Vite and React app, and the backend is a Flask server that talks to MongoDB and Gemini.
 
@@ -41,7 +41,7 @@ The backend reads its settings from `backend/.env`, which git ignores so your cr
 | `SMTP_HOST`, `SMTP_PORT` | No | Outgoing mail server, which defaults to Gmail on port 587 |
 | `SMTP_USER`, `SMTP_PASSWORD` | No | Mail account and app password for emergency contact alerts, and alerts are skipped when either one is empty |
 | `SMTP_SENDER` | No | Display address for alerts, which falls back to `SMTP_USER` |
-| `STREET_GRAPH_PATH` | No | Where the cached Oakland walking graph is stored, which defaults to `backend/cache/oakland_walk.graphml` |
+| `STREET_GRAPH_PATH` | No | Where the cached Oakland walking graph is stored, which defaults to `backend/cache/oakland_walk.pkl.gz` |
 
 If `MONGO_URI` or `SECRET_KEY` is missing, the server stops right away with a message that names each missing variable, so you never wait for the Oakland street graph to download only to hit a configuration error. It also refuses placeholder secrets such as `dev_key`, and you can generate a proper one with this command.
 
@@ -49,7 +49,7 @@ If `MONGO_URI` or `SECRET_KEY` is missing, the server stops right away with a me
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-The first start downloads the Oakland walking graph from OpenStreetMap, which takes a few minutes, and saves it to `backend/cache/oakland_walk.graphml`. Every later start reads that file in seconds. You can also build it ahead of time with `python street_graph.py` from the `backend` folder, which is what the Docker image does.
+The first start downloads the Oakland walking graph from OpenStreetMap, which takes a few minutes, and saves a packed copy to `backend/cache/oakland_walk.pkl.gz`. Every later start reads that file in seconds. Building it needs the packages in `backend/requirements-build.txt` (osmnx and geopandas), which `requirements-dev.txt` already includes, and you can build it ahead of time with `python street_graph.py` from the `backend` folder. The server itself only needs `backend/requirements.txt`.
 
 ### Running the backend tests
 
@@ -64,19 +64,17 @@ The CI workflow in `.github/workflows/ci.yml` runs the backend tests on every pu
 
 ## Hosting
 
-The backend runs as a free Hugging Face Docker Space. Every push to `main` that touches `backend/` runs `.github/workflows/deploy-backend.yml`, which runs the backend tests, creates the Space if it does not exist yet, copies the settings below into the Space secrets, uploads `backend/` with its `Dockerfile`, waits until the Space answers on `/home`, and then asks it for a real walking route in downtown Oakland. The image downloads the Oakland walking graph while it builds, and gunicorn serves the app on port 7860.
+Everything runs on one free Vercel project with no payment method attached. The React app is served as static files, and the Flask backend runs as a Python function at `/api` (`api/index.py`), so the browser calls the same site and only the backend ever sees a secret. Every push to `main` runs `.github/workflows/deploy.yml`, which tests the backend and the frontend, downloads and packs the Oakland street graph (cached between runs), deploys with `vercel deploy --prod`, checks that the page loads, and asks the live backend for a walking route in downtown Oakland.
 
-| Repository setting | Kind | Purpose |
-| --- | --- | --- |
-| `HF_TOKEN` | Secret | Hugging Face token with write access |
-| `MONGO_URI`, `SECRET_KEY` | Secret | Required by the server, so the deploy stops when either is missing |
-| `GOOGLE_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD` | Secret | Optional, copied when present |
-| `HF_SPACE_NAME` | Variable | Optional Space name, which defaults to `safe-stride` under the token's account |
-| `CORS_ORIGINS` | Variable | Optional list of frontend origins, which defaults to the live frontend at `https://safe-stride-seven.vercel.app` |
+| Repository secret | Purpose |
+| --- | --- |
+| `VERCEL_TOKEN` | Vercel token for the deploy |
+| `MONGO_URI`, `SECRET_KEY` | Required by the backend, so the deploy stops when either is missing |
+| `GOOGLE_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD` | Optional, passed to the function when present |
 
-The frontend goes to Vercel through `.github/workflows/deploy-frontend.yml` on every push to `main` that touches it. The workflow lints, typechecks and tests the app, asks Hugging Face for the Space URL (or uses the `VITE_API_URL` repository variable when it is set), deploys with `vercel deploy --prod` using the `VERCEL_TOKEN` secret, and checks that the published page loads. `vercel.json` sends every path to `index.html` so links such as `/login` work after a refresh.
+These values are handed to the function as runtime settings, so none of them is ever built into the browser code. The only `VITE_` setting is `VITE_API_URL`, which is the public path `/api`. `.vercelignore` keeps every `.env` file out of the upload.
 
-MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Spaces have no fixed IP address.
+MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Vercel functions have no fixed IP address. Each request to `/api` shows up in the Runtime Logs of the Vercel project.
 
 ## How routes are chosen
 

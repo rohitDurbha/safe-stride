@@ -1,4 +1,15 @@
-backend/
+# Never upload local secrets.
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+# The function only needs the backend code and the packed street graph.
+backend/tests/
+backend/crime_rate.csv
+backend/__pycache__/
+backend/.pytest_cache/
 node_modules/
 dist/
 .github/

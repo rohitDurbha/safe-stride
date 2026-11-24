@@ -1,0 +1,5 @@
+# Needed only to download the Oakland street graph and pack it with
+# python street_graph.py. Local servers also use these on their first start.
+-r requirements.txt
+osmnx
+geopandas
