@@ -39,12 +39,15 @@ The backend reads its settings from `backend/.env`, which git ignores so your cr
 | `SMTP_HOST`, `SMTP_PORT` | No | Outgoing mail server, which defaults to Gmail on port 587 |
 | `SMTP_USER`, `SMTP_PASSWORD` | No | Mail account and app password for emergency contact alerts, and alerts are skipped when either one is empty |
 | `SMTP_SENDER` | No | Display address for alerts, which falls back to `SMTP_USER` |
+| `STREET_GRAPH_PATH` | No | Where the cached Oakland walking graph is stored, which defaults to `backend/cache/oakland_walk.graphml` |
 
 If `MONGO_URI` or `SECRET_KEY` is missing, the server stops right away with a message that names each missing variable, so you never wait for the Oakland street graph to download only to hit a configuration error. It also refuses placeholder secrets such as `dev_key`, and you can generate a proper one with this command.
 
 ```sh
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
+
+The first start downloads the Oakland walking graph from OpenStreetMap, which takes a few minutes, and saves it to `backend/cache/oakland_walk.graphml`. Every later start reads that file in seconds. You can also build it ahead of time with `python street_graph.py` from the `backend` folder, which is what the Docker image does.
 
 ### Running the backend tests
 

@@ -16,16 +16,16 @@ from heatmap import heatmap_points
 from mailer import send_email
 from report_classifier import classify_incident
 from routing import SafetyRouter, crimes_from_records, is_night, local_now
+from street_graph import load_street_graph
 
 # Stop right away when a required setting is missing, before the slow
-# street graph download below.
+# street graph load below.
 check_required_settings()
 
 # === Street graph and safety scores ===
-GRAPH_PLACE = "Oakland, California, USA"
-# Keep the OSM "lit" tag on streets so night routes can prefer lit streets.
-ox.settings.useful_tags_way = sorted(set(ox.settings.useful_tags_way) | {"lit"})
-G = ox.graph_from_place(GRAPH_PLACE, network_type='walk')
+# Read the walking graph from the file baked into the image (or built on the
+# first local start) instead of downloading it from OpenStreetMap every time.
+G, _graph_source = load_street_graph()
 router = SafetyRouter.from_osmnx(G)
 emergency_contact = ''
 
