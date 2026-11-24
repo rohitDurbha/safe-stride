@@ -8,10 +8,13 @@ GOOGLE_API_KEY is not set. Run it with
 CI runs it with the GOOGLE_API_KEY repository secret. It calls the request
 helper directly instead of classify_incident, so a bad key, a retired model
 name or a quota error fails the test instead of quietly using the keyword
-fallback.
+fallback. A 5xx reply means Google's side is overloaded or down, which says
+nothing about this code, so the test retries a few times and then skips
+instead of failing the build.
 """
 import json
 import os
+import time
 
 import pytest
 
@@ -23,6 +26,9 @@ SAMPLE_REPORT = (
     "A man pulled out a knife near the bus stop on Telegraph Avenue "
     "and took my phone before running off."
 )
+
+SERVER_RETRIES = 3
+RETRY_DELAY_SECONDS = 10
 
 # Any of these is a sensible reading of the sample report.
 EXPECTED = {"ROBBERY", "WEAPONS", "BRANDISHING", "FELONY ASSAULT", "GRAND THEFT", "PETTY THEFT"}
@@ -38,8 +44,20 @@ def live_client():
     return genai.Client(api_key=api_key)
 
 
+def request_with_retries(client):
+    from google.genai import errors
+
+    for attempt in range(1, SERVER_RETRIES + 1):
+        try:
+            return rc.request_gemini_reply(SAMPLE_REPORT, client)
+        except errors.ServerError as exc:
+            if attempt == SERVER_RETRIES:
+                pytest.skip(f"Gemini kept answering {exc.code} after {attempt} tries, so the check was skipped.")
+            time.sleep(RETRY_DELAY_SECONDS * attempt)
+
+
 def test_gemini_classifies_a_sample_report(live_client):
-    text = rc.request_gemini_reply(SAMPLE_REPORT, live_client)
+    text = request_with_retries(live_client)
 
     payload = json.loads(text)
     assert isinstance(payload.get("matches"), list), text
