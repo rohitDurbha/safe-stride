@@ -154,3 +154,25 @@ def test_download_reports_every_server_when_all_fail():
     ox = FakeOx(failing={"https://a", "https://b"})
     with pytest.raises(RuntimeError, match="https://a.*\n.*https://b"):
         street_graph.download_graph(urls=("https://a", "https://b"), ox=ox, log=quiet)
+
+
+def test_a_pack_built_by_running_the_script_can_be_read_by_the_server(tmp_path, monkeypatch):
+    # The deploy runs "python street_graph.py", which executes the file as
+    # __main__. The saved pickle must still load in the server process.
+    import pickletools
+    import runpy
+    import sys
+
+    out = tmp_path / "g.pkl.gz"
+    monkeypatch.setattr(street_graph, "build_pack", tiny_pack)
+    monkeypatch.setattr(sys, "argv", ["street_graph.py", str(out)])
+    runpy.run_path(street_graph.__file__, run_name="__main__")
+
+    import gzip
+
+    raw = gzip.decompress(out.read_bytes())
+    assert b"__main__" not in b"".join(
+        str(arg).encode() for _, arg, _ in pickletools.genops(raw) if arg is not None
+    )
+    pack = street_graph.read_pack(out)
+    assert type(pack) is StreetPack

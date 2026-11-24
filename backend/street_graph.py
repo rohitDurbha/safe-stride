@@ -177,4 +177,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    # Run through the importable module, so the pickle refers to
+    # street_graph.StreetPack and not __main__.StreetPack, which the server
+    # could not find when it loads the file.
+    import street_graph
+
+    street_graph.main()
