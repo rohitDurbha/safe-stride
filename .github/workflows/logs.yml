@@ -1,0 +1,42 @@
+name: Site logs
+
+# Prints recent Vercel request logs for the live site, so backend errors and
+# bots probing for files such as /.env can be checked without the dashboard.
+# Run it from the Actions tab. Values of repository secrets are masked.
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: How far back to look, for example 1h, 24h or 7d
+        default: 24h
+
+permissions:
+  contents: read
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      SINCE: ${{ inputs.since || '24h' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Link the Vercel project
+        run: npx --yes vercel@63.1.0 link --yes --project safe-stride > /dev/null
+      - name: Backend errors
+        run: |
+          npx --yes vercel@63.1.0 logs --source serverless --level error \
+            --since "$SINCE" --limit 50 --expand || true
+      - name: Backend requests that failed
+        run: |
+          npx --yes vercel@63.1.0 logs --source serverless --status-code 5xx \
+            --since "$SINCE" --limit 50 --expand || true
+      - name: Requests probing for secrets or admin pages
+        run: |
+          npx --yes vercel@63.1.0 logs --since "$SINCE" --limit 1000 --json > all.jsonl || true
+          python3 .github/scripts/probe_report.py all.jsonl
