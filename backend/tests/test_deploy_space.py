@@ -84,3 +84,25 @@ def test_wait_gives_up_after_the_time_limit():
     )
     assert code == 1
     assert clock.now >= 60
+
+
+class FakeApi:
+    def whoami(self):
+        return {"name": "rohitdurbha"}
+
+
+def test_resolve_repo_id_uses_the_token_owner_and_default_name():
+    assert deploy_space.resolve_repo_id(FakeApi(), {}) == "rohitdurbha/safe-stride"
+    assert deploy_space.resolve_repo_id(FakeApi(), {"HF_SPACE_NAME": "walk-api"}) == "rohitdurbha/walk-api"
+    assert deploy_space.resolve_repo_id(FakeApi(), {"HF_SPACE_NAME": "org/api"}) == "org/api"
+
+
+def test_write_output_appends_to_the_github_output_file(tmp_path):
+    out = tmp_path / "out"
+    deploy_space.write_output("url", "https://a-b.hf.space", {"GITHUB_OUTPUT": str(out)})
+    assert out.read_text() == "url=https://a-b.hf.space\n"
+
+
+def test_print_url_needs_a_token(capsys):
+    assert deploy_space.print_url({}) == 1
+    assert "HF_TOKEN" in capsys.readouterr().out

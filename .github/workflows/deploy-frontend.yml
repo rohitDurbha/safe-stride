@@ -1,0 +1,100 @@
+name: Deploy frontend
+
+# Builds the React app against the Hugging Face backend and publishes it to
+# Vercel on every push to main that touches the frontend.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "backend/**"
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Test and deploy to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_SPACE_NAME: ${{ vars.HF_SPACE_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for the Vercel token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::The VERCEL_TOKEN repository secret is missing, so the frontend cannot be deployed."
+            exit 1
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Work out the backend URL
+        id: backend
+        working-directory: backend
+        run: |
+          if [ -n "${{ vars.VITE_API_URL }}" ]; then
+            echo "url=${{ vars.VITE_API_URL }}" >> "$GITHUB_OUTPUT"
+          else
+            pip install --quiet huggingface_hub
+            python deploy_space.py url
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint, typecheck and test
+        run: |
+          npm run lint
+          npx tsc --noEmit -p tsconfig.app.json && npx tsc --noEmit -p tsconfig.node.json
+          npm test
+      - name: Publish to Vercel
+        id: vercel
+        env:
+          VITE_API_URL: ${{ steps.backend.outputs.url }}
+        run: |
+          echo "Building against $VITE_API_URL"
+          for attempt in 1 2 3; do
+            if npx --yes vercel@63.1.0 deploy --prod --yes \
+                --build-env VITE_API_URL="$VITE_API_URL" > deploy-url.txt; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 15
+          done
+          deployment=$(tail -n 1 deploy-url.txt)
+          echo "Deployment $deployment"
+          # The production alias is the short project URL that stays the same
+          # across deploys. Fall back to the deployment URL if none is listed.
+          npx --yes vercel@63.1.0 inspect "$deployment" > inspect.txt 2>&1 || true
+          alias=$(grep -oE 'https://[a-z0-9.-]+\.vercel\.app' inspect.txt \
+            | grep -vxF "$deployment" | awk '{ print length, $0 }' | sort -n | head -n 1 | cut -d' ' -f2)
+          url=${alias:-$deployment}
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Frontend live at $url" >> "$GITHUB_STEP_SUMMARY"
+      - name: Check that the page loads
+        env:
+          SITE_URL: ${{ steps.vercel.outputs.url }}
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --max-time 20 "$SITE_URL/" -o index.html \
+                && grep -q '<div id="root">' index.html \
+                && curl --fail --silent --max-time 20 -o /dev/null "$SITE_URL/login"; then
+              echo "Frontend answered at $SITE_URL"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::$SITE_URL did not serve the app"
+          exit 1

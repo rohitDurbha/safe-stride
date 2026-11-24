@@ -4,6 +4,7 @@ The GitHub Actions workflow in .github/workflows/deploy-backend.yml runs
 
     python deploy_space.py deploy     # create the Space, set secrets, upload
     python deploy_space.py wait       # poll until /home answers or the build fails
+    python deploy_space.py url        # print the Space URL for the frontend build
 
 It reads HF_TOKEN plus the app settings from the environment, so no key is
 ever written to the repository.
@@ -132,6 +133,19 @@ def deploy(environ=None):
     return 0
 
 
+def print_url(environ=None):
+    """Write the Space URL to GITHUB_OUTPUT so the frontend build can use it."""
+    environ = os.environ if environ is None else environ
+    if not environ.get("HF_TOKEN", "").strip():
+        print("Cannot work out the backend URL, the HF_TOKEN repository secret is missing.")
+        return 1
+
+    from huggingface_hub import HfApi
+    repo_id = resolve_repo_id(HfApi(token=environ["HF_TOKEN"]), environ)
+    write_output("url", space_url(repo_id), environ)
+    return 0
+
+
 def fetch_status(url, timeout=20):
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
@@ -179,5 +193,7 @@ if __name__ == "__main__":
         sys.exit(deploy())
     if command == "wait":
         sys.exit(wait())
+    if command == "url":
+        sys.exit(print_url())
     print(__doc__)
     sys.exit(2)

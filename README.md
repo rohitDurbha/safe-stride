@@ -72,6 +72,8 @@ The backend runs as a free Hugging Face Docker Space. Every push to `main` that 
 | `HF_SPACE_NAME` | Variable | Optional Space name, which defaults to `safe-stride` under the token's account |
 | `CORS_ORIGINS` | Variable | Optional list of frontend origins, which defaults to the `safe-stride` Vercel URL and its preview URLs |
 
+The frontend goes to Vercel through `.github/workflows/deploy-frontend.yml` on every push to `main` that touches it. The workflow lints, typechecks and tests the app, asks Hugging Face for the Space URL (or uses the `VITE_API_URL` repository variable when it is set), deploys with `vercel deploy --prod` using the `VERCEL_TOKEN` secret, and checks that the published page loads. `vercel.json` sends every path to `index.html` so links such as `/login` work after a refresh.
+
 MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Spaces have no fixed IP address.
 
 ## How routes are chosen
