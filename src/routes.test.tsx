@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import AppRoutes, { APP_ROUTES } from "./routes";
 
-// The real pages pull in Leaflet and Firebase, which need a browser, so each
+// The real pages pull in Leaflet, which needs a browser, so each
 // one is replaced by a stub that only prints its name.
 const stubPage = vi.hoisted(
   () => (name: string) => ({ default: () => <main>{`${name} page`}</main> }),
@@ -11,7 +11,6 @@ const stubPage = vi.hoisted(
 vi.mock("./pages/Index", () => stubPage("Index"));
 vi.mock("./pages/Login", () => stubPage("Login"));
 vi.mock("./pages/Home", () => stubPage("Home"));
-vi.mock("./pages/Setup", () => stubPage("Setup"));
 vi.mock("./pages/Heatmap", () => stubPage("Heatmap"));
 vi.mock("./pages/Profile", () => stubPage("Profile"));
 
@@ -28,7 +27,6 @@ describe("app routes", () => {
       "/",
       "/login",
       "/home",
-      "/setup",
       "/heatmap",
       "/profile",
       "*",
@@ -39,7 +37,6 @@ describe("app routes", () => {
     ["/", "Index"],
     ["/login", "Login"],
     ["/home", "Home"],
-    ["/setup", "Setup"],
     ["/heatmap", "Heatmap"],
     ["/profile", "Profile"],
   ])("renders %s with the %s page", (path, name) => {

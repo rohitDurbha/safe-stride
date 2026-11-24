@@ -10,11 +10,11 @@ You will need Node.js 20.19 or newer (Vite 8 needs it) for the frontend and Pyth
 
 ```sh
 npm install
-cp .env.example .env   # then fill in the VITE_FIREBASE_ values
+cp .env.example .env   # optional, set VITE_API_URL to use a backend other than 127.0.0.1:5000
 npm run dev
 ```
 
-Run the frontend tests with `npm test`. They use Vitest and need no backend or Firebase settings.
+Run the frontend tests with `npm test`. They use Vitest and need no backend settings.
 
 ### Backend
 
@@ -84,23 +84,10 @@ This project is built with:
 - Flask
 - Gemini
 - MongoDB
-- Firebase
 - Web Speech API
 - OSM + GeoPY
   
 
-## Firebase Setup
+## Sign in
 
-To connect this application to Firebase:
-
-1. Create a Firebase project at [firebase.google.com](https://firebase.google.com)
-2. Enable Authentication, Firestore, and Storage services
-3. Create a web app in your Firebase project
-4. Copy your Firebase config from the Firebase Console
-5. Copy `.env.example` to `.env` in the project root and fill in the `VITE_FIREBASE_` values from your web app config
-
-```sh
-cp .env.example .env
-```
-
-The `.env` file is ignored by git, so the keys stay on your machine. You can also enter the values on the `/setup` page, which saves them in the browser.
+SafeStride uses one login system, the Flask backend's email and password sign up with JWT tokens, so the frontend needs no Firebase or other third party keys.
