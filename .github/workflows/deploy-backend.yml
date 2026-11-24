@@ -35,9 +35,9 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-      # The Vercel frontend and its preview deployments. Set the CORS_ORIGINS
-      # repository variable to override it once the final domain is known.
-      CORS_ORIGINS: ${{ vars.CORS_ORIGINS || 'https://safe-stride.vercel.app,https://safe-stride-[a-z0-9-]+\.vercel\.app$' }}
+      # The production Vercel frontend. Set the CORS_ORIGINS repository
+      # variable to allow other origins, such as a custom domain.
+      CORS_ORIGINS: ${{ vars.CORS_ORIGINS || 'https://safe-stride-seven.vercel.app' }}
     outputs:
       url: ${{ steps.push.outputs.url }}
     steps:
@@ -58,5 +58,9 @@ jobs:
         env:
           HF_SPACE_REPO_ID: ${{ steps.push.outputs.repo_id }}
         run: python deploy_space.py wait
+      - name: Ask the live backend for a route
+        env:
+          HF_SPACE_REPO_ID: ${{ steps.push.outputs.repo_id }}
+        run: python deploy_space.py check
       - name: Summary
         run: echo "Backend live at ${{ steps.push.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

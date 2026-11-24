@@ -106,3 +106,21 @@ def test_write_output_appends_to_the_github_output_file(tmp_path):
 def test_print_url_needs_a_token(capsys):
     assert deploy_space.print_url({}) == 1
     assert "HF_TOKEN" in capsys.readouterr().out
+
+
+def test_route_check_passes_when_the_backend_returns_a_route():
+    seen = []
+
+    def fetch(url):
+        seen.append(url)
+        return 200, {"route": [[37.80, -122.27], [37.81, -122.26]], "summary": {}}
+
+    assert deploy_space.check_route({"HF_SPACE_REPO_ID": "a/b"}, fetch=fetch) == 0
+    assert seen[0].startswith("https://a-b.hf.space/safe_path?start_lat=")
+
+
+def test_route_check_fails_on_an_error_or_an_empty_route():
+    env = {"HF_SPACE_REPO_ID": "a/b"}
+    assert deploy_space.check_route(env, fetch=lambda url: (500, {"error": "boom"})) == 1
+    assert deploy_space.check_route(env, fetch=lambda url: (200, {"route": []})) == 1
+    assert deploy_space.check_route(env, fetch=lambda url: (None, None)) == 1

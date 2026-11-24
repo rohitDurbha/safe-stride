@@ -4,6 +4,7 @@ The GitHub Actions workflow in .github/workflows/deploy-backend.yml runs
 
     python deploy_space.py deploy     # create the Space, set secrets, upload
     python deploy_space.py wait       # poll until /home answers or the build fails
+    python deploy_space.py check      # ask the live backend for a real route
     python deploy_space.py url        # print the Space URL for the frontend build
 
 It reads HF_TOKEN plus the app settings from the environment, so no key is
@@ -146,6 +147,36 @@ def print_url(environ=None):
     return 0
 
 
+# Two points in downtown Oakland about a kilometre apart, so a working
+# backend always has a walking route between them.
+ROUTE_CHECK_QUERY = "start_lat=37.8044&start_lon=-122.2712&end_lat=37.8100&end_lon=-122.2620&period=day"
+
+
+def fetch_json(url, timeout=60):
+    import json
+
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return resp.status, json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        return exc.code, None
+    except (urllib.error.URLError, TimeoutError, ConnectionError, ValueError):
+        return None, None
+
+
+def check_route(environ=None, fetch=fetch_json):
+    """Ask the deployed backend for a route and fail unless it returns one."""
+    environ = os.environ if environ is None else environ
+    url = f"{space_url(environ['HF_SPACE_REPO_ID'])}/safe_path?{ROUTE_CHECK_QUERY}"
+    status, body = fetch(url)
+    route = (body or {}).get("route") or []
+    if status == 200 and len(route) >= 2:
+        print(f"Route check passed with {len(route)} points: {(body or {}).get('summary')}")
+        return 0
+    print(f"Route check failed. GET {url} answered {status} with {body}")
+    return 1
+
+
 def fetch_status(url, timeout=20):
     try:
         with urllib.request.urlopen(url, timeout=timeout) as resp:
@@ -193,6 +224,8 @@ if __name__ == "__main__":
         sys.exit(deploy())
     if command == "wait":
         sys.exit(wait())
+    if command == "check":
+        sys.exit(check_route())
     if command == "url":
         sys.exit(print_url())
     print(__doc__)

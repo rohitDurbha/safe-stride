@@ -14,7 +14,7 @@ Take these before the next step of the numbered items, one per session.
 
 ## Live link
 
-Live link: not deployed yet. The backend goes to a Hugging Face Docker Space and the frontend goes to Vercel, both deployed from GitHub Actions with the `HF_TOKEN` and `VERCEL_TOKEN` repository secrets, so nothing is deployed by hand.
+Live link: https://safe-stride-seven.vercel.app (frontend live since November 24, 2026). The backend Space at https://rohitdurbha-safe-stride.hf.space is not up yet, because the deploy stops until the `SECRET_KEY` secret exists. The backend goes to a Hugging Face Docker Space and the frontend goes to Vercel, both deployed from GitHub Actions with the `HF_TOKEN` and `VERCEL_TOKEN` repository secrets, so nothing is deployed by hand.
 
 - [ ] Put SafeStride on a free live link.
   - [x] a. Replace the hardcoded `http://127.0.0.1:5000` calls with one `VITE_API_URL` setting. This was item 5. Every request now goes through `apiUrl` in `src/lib/api.ts` (covered by `api.test.ts`), which trims trailing slashes and falls back to the local Flask server when the setting is empty. `.env.example` documents it.
@@ -22,13 +22,13 @@ Live link: not deployed yet. The backend goes to a Hugging Face Docker Space and
   - [x] c. Keep Flask JWT as the only login and remove Firebase auth, so the hosted frontend needs no Firebase keys. This is the auth half of item 6. Nothing outside `src/firebase` used Firebase except the `/setup` page, which only stored Firebase settings and a Mapbox token nothing reads, so the folder, the page, the `firebase` package, its `@grpc/grpc-js` override and the `VITE_FIREBASE_` settings are gone. The bundle shrank and `npm audit` still reports no vulnerabilities.
   - [x] d. Add a backend Dockerfile for a Hugging Face Docker Space that serves the app with gunicorn on port 7860 and locks CORS to the frontend origin. Add a workflow that pushes it to the Space with `HF_TOKEN` and copies `MONGO_URI`, `SECRET_KEY` and `GOOGLE_API_KEY` from the repository secrets into the Space secrets. `backend/Dockerfile` bakes the street graph into the image and runs gunicorn on port 7860, `CORS_ORIGINS` (tested in `test_required_settings.py`) limits browser origins, and `.github/workflows/deploy-backend.yml` runs the tests, then `backend/deploy_space.py` creates the Space, copies the secrets, uploads the backend and waits for `/home` to answer. The first real deploy waits on the `SECRET_KEY` secret and the Atlas network rule under Needs Rohit.
   - [x] e. Add a workflow that builds the frontend with `VITE_API_URL` pointing at the Space and deploys it to Vercel with `VERCEL_TOKEN` on every push to main. `.github/workflows/deploy-frontend.yml` gets the Space URL from `backend/deploy_space.py url`, deploys with the Vercel CLI and `--build-env VITE_API_URL`, and fails the run when the published page does not load. `vercel.json` rewrites client routes to `index.html`.
-  - [ ] f. Add a check after each deploy that loads the site, asks the backend for a route and fails the run when either breaks. Then put both live links at the top of the README and at the top of this section.
+  - [ ] f. Add a check after each deploy that loads the site, asks the backend for a route and fails the run when either breaks. Then put both live links at the top of the README and at the top of this section. Partly done. The frontend workflow fails when the page or `/login` does not load, and the backend workflow runs `deploy_space.py check`, which asks the Space for a downtown Oakland route. Both links are at the top of the README. This stays open until the backend deploy passes its route check.
 
 ## Bugs found on the live site
 
 Every session opens the live link first, adds anything broken here, and fixes these before the numbered items.
 
-- None logged yet, because the site is not live.
+- [ ] Every API call from https://safe-stride-seven.vercel.app fails (login, sign up, routes and the heatmap), because the backend Space has not been created yet. The Deploy backend run stops with "these repository secrets are missing: SECRET_KEY". This clears once `SECRET_KEY` is added and Atlas allows `0.0.0.0/0` (see Needs Rohit), and the next push to `backend/` or a manual run of Deploy backend will create the Space.
 
 ## Items
 

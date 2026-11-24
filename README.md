@@ -1,5 +1,7 @@
 # SafeStride
 
+Live site: https://safe-stride-seven.vercel.app (the frontend is up, and the backend at https://rohitdurbha-safe-stride.hf.space goes live once the `SECRET_KEY` repository secret is added)
+
 SafeStride suggests safer walking routes around Oakland by weighting streets with crime data and community reports. The frontend is a Vite and React app, and the backend is a Flask server that talks to MongoDB and Gemini.
 
 ## Local setup
@@ -62,7 +64,7 @@ The CI workflow in `.github/workflows/ci.yml` runs the backend tests on every pu
 
 ## Hosting
 
-The backend runs as a free Hugging Face Docker Space. Every push to `main` that touches `backend/` runs `.github/workflows/deploy-backend.yml`, which runs the backend tests, creates the Space if it does not exist yet, copies the settings below into the Space secrets, uploads `backend/` with its `Dockerfile`, and waits until the Space answers on `/home`. The image downloads the Oakland walking graph while it builds, and gunicorn serves the app on port 7860.
+The backend runs as a free Hugging Face Docker Space. Every push to `main` that touches `backend/` runs `.github/workflows/deploy-backend.yml`, which runs the backend tests, creates the Space if it does not exist yet, copies the settings below into the Space secrets, uploads `backend/` with its `Dockerfile`, waits until the Space answers on `/home`, and then asks it for a real walking route in downtown Oakland. The image downloads the Oakland walking graph while it builds, and gunicorn serves the app on port 7860.
 
 | Repository setting | Kind | Purpose |
 | --- | --- | --- |
@@ -70,7 +72,7 @@ The backend runs as a free Hugging Face Docker Space. Every push to `main` that 
 | `MONGO_URI`, `SECRET_KEY` | Secret | Required by the server, so the deploy stops when either is missing |
 | `GOOGLE_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD` | Secret | Optional, copied when present |
 | `HF_SPACE_NAME` | Variable | Optional Space name, which defaults to `safe-stride` under the token's account |
-| `CORS_ORIGINS` | Variable | Optional list of frontend origins, which defaults to the `safe-stride` Vercel URL and its preview URLs |
+| `CORS_ORIGINS` | Variable | Optional list of frontend origins, which defaults to the live frontend at `https://safe-stride-seven.vercel.app` |
 
 The frontend goes to Vercel through `.github/workflows/deploy-frontend.yml` on every push to `main` that touches it. The workflow lints, typechecks and tests the app, asks Hugging Face for the Space URL (or uses the `VITE_API_URL` repository variable when it is set), deploys with `vercel deploy --prod` using the `VERCEL_TOKEN` secret, and checks that the published page loads. `vercel.json` sends every path to `index.html` so links such as `/login` work after a refresh.
 
