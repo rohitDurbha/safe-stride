@@ -1,5 +1,6 @@
-// Change the BASE_URL to local development server
-export const BASE_URL = "http://127.0.0.1:5000"; // Updated to use local backend and now exported
+import { API_URL } from "@/lib/api";
+
+export const BASE_URL = API_URL;
 
 export async function registerUser(
   email: string,

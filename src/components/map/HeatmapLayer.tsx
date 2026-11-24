@@ -1,13 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import L from 'leaflet';
 import { toast } from '@/components/ui/use-toast';
+import { apiUrl } from '@/lib/api';
 
 interface HeatmapLayerProps {
   centerCoords: [number, number];
   map: L.Map;
 }
-
-const BASE_URL = "http://127.0.0.1:5000";
 
 interface HeatmapPoint {
   geometry?: { coordinates?: [number, number] };
@@ -48,7 +47,7 @@ const HeatmapLayer = ({ centerCoords, map }: HeatmapLayerProps) => {
       // Ignore a response that arrives after the heatmap was switched off
       let cancelled = false;
       const timer = setTimeout(() => {
-        fetch(`${BASE_URL}/heatmap_data`)
+        fetch(apiUrl('/heatmap_data'))
           .then(res => {
             if (!res.ok) {
               throw new Error(`heatmap_data returned HTTP ${res.status}`);

@@ -7,6 +7,7 @@ import DestinationInput, { LatLon } from './map/DestinationInput';
 import MapMarker from './map/MapMarker';
 import HeatmapLayer from './map/HeatmapLayer';
 import { toast } from '@/components/ui/use-toast';
+import { apiUrl } from '@/lib/api';
 
 interface LeafletMapProps {
   showHeatmap?: boolean;
@@ -347,7 +348,7 @@ const LeafletMap: React.FC<LeafletMapProps> = ({
     }
 
     try {
-      const response = await fetch(`http://127.0.0.1:5000/safe_path?${params.toString()}`);
+      const response = await fetch(apiUrl(`/safe_path?${params.toString()}`));
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) throw new Error(data.error || 'Failed to fetch route');

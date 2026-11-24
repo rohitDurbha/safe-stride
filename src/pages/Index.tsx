@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { testBackendConnectivity } from "@/api/api-test";
+import { API_URL } from "@/lib/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
@@ -101,8 +102,8 @@ const Index = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Backend Connection Failed</AlertTitle>
             <AlertDescription className="space-y-4">
-              <p>Could not connect to the backend server at: <code className="bg-muted p-1 rounded">{import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"}</code></p>
-              <p>Please ensure your Flask backend is running on port 5000.</p>
+              <p>Could not connect to the backend server at: <code className="bg-muted p-1 rounded">{API_URL}</code></p>
+              <p>Please make sure the Flask backend is running and that VITE_API_URL points at it.</p>
               <div className="flex justify-center mt-4">
                 <Button onClick={retryConnection}>
                   Retry Connection

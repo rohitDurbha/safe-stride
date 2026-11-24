@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Mic, MapPin, Square } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { readStoredUser } from "@/lib/storedUser";
+import { apiUrl } from "@/lib/api";
 
 // The browser speech API is not in the TypeScript DOM library yet, so these
 // cover only the parts this component touches.
@@ -124,7 +125,7 @@ const IncidentReporter = () => {
     console.log("Emergency contact email:", emergencyContactEmail);
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/report_audio", {
+      const res = await fetch(apiUrl("/report_audio"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
