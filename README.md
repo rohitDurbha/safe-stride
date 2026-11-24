@@ -74,7 +74,7 @@ Everything runs on one free Vercel project with no payment method attached. The 
 
 These values are handed to the function as runtime settings, so none of them is ever built into the browser code. The only `VITE_` setting is `VITE_API_URL`, which is the public path `/api`. `.vercelignore` keeps every `.env` file out of the upload.
 
-MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Vercel functions have no fixed IP address. Each request to `/api` shows up in the Runtime Logs of the Vercel project.
+MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Vercel functions have no fixed IP address. Each request to `/api` shows up in the Runtime Logs of the Vercel project. The Site logs workflow in the Actions tab prints recent backend errors and any requests probing for files such as `/.env`, without opening the dashboard.
 
 ## How routes are chosen
 
