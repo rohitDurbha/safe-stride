@@ -60,6 +60,20 @@ These tests use a fake Gemini client and never touch the network. A separate liv
 
 The CI workflow in `.github/workflows/ci.yml` runs the backend tests on every push and pull request. When they pass, it runs the live smoke test with the `GOOGLE_API_KEY` repository secret, and it skips that check when the secret is not available to the run, such as on pull requests from forks.
 
+## Hosting
+
+The backend runs as a free Hugging Face Docker Space. Every push to `main` that touches `backend/` runs `.github/workflows/deploy-backend.yml`, which runs the backend tests, creates the Space if it does not exist yet, copies the settings below into the Space secrets, uploads `backend/` with its `Dockerfile`, and waits until the Space answers on `/home`. The image downloads the Oakland walking graph while it builds, and gunicorn serves the app on port 7860.
+
+| Repository setting | Kind | Purpose |
+| --- | --- | --- |
+| `HF_TOKEN` | Secret | Hugging Face token with write access |
+| `MONGO_URI`, `SECRET_KEY` | Secret | Required by the server, so the deploy stops when either is missing |
+| `GOOGLE_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD` | Secret | Optional, copied when present |
+| `HF_SPACE_NAME` | Variable | Optional Space name, which defaults to `safe-stride` under the token's account |
+| `CORS_ORIGINS` | Variable | Optional list of frontend origins, which defaults to the `safe-stride` Vercel URL and its preview URLs |
+
+MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Spaces have no fixed IP address.
+
 ## How routes are chosen
 
 The routing code lives in `backend/routing.py`. Each crime in the dataset, and each report people send through the app, adds risk to the streets around it. The risk fades smoothly over about 120 m, so streets right next to a hotspot score highest and the next block over scores a little. Each crime's weight depends on how dangerous it is for someone on foot (a robbery counts far more than a car break-in), how recent it is (older incidents fade with a 90 day half-life but never disappear), and whether it happened in the same part of the day as the walk.

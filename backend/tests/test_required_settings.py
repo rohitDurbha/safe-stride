@@ -52,3 +52,35 @@ def test_check_reads_process_environment_by_default(monkeypatch):
     monkeypatch.setenv("MONGO_URI", GOOD["MONGO_URI"])
     monkeypatch.delenv("SECRET_KEY", raising=False)
     assert config.missing_settings() == ["SECRET_KEY"]
+
+
+def test_cors_allows_every_origin_when_unset():
+    assert config.get_cors_origins({}) == "*"
+    assert config.get_cors_origins({"CORS_ORIGINS": " , "}) == "*"
+
+
+def test_cors_reads_a_comma_separated_list_without_trailing_slashes():
+    assert config.get_cors_origins(
+        {"CORS_ORIGINS": "https://safe-stride.vercel.app/, http://localhost:8080"}
+    ) == ["https://safe-stride.vercel.app", "http://localhost:8080"]
+
+
+def test_cors_origins_allow_the_frontend_and_its_previews_only():
+    from flask import Flask
+    from flask_cors import CORS
+
+    origins = config.get_cors_origins(
+        {"CORS_ORIGINS": r"https://safe-stride.vercel.app,https://safe-stride-[a-z0-9-]+\.vercel\.app$"}
+    )
+    app = Flask("cors_check")
+    CORS(app, resources={r"/*": {"origins": origins}}, supports_credentials=True)
+    app.add_url_rule("/home", "home", lambda: "ok")
+    client = app.test_client()
+
+    def allowed(origin):
+        return client.get("/home", headers={"Origin": origin}).headers.get("Access-Control-Allow-Origin")
+
+    assert allowed("https://safe-stride.vercel.app") == "https://safe-stride.vercel.app"
+    assert allowed("https://safe-stride-git-main-rohit.vercel.app") is not None
+    assert allowed("https://safe-stride-x.vercel.app.evil.com") is None
+    assert allowed("https://evil.com") is None

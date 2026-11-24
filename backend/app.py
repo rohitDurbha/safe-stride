@@ -10,7 +10,7 @@ from flask_cors import CORS
 from flask_pymongo import PyMongo
 from geopy.geocoders import Nominatim
 
-from config import check_required_settings, get_jwt_expiration, get_mongo_uri, get_secret_key
+from config import check_required_settings, get_cors_origins, get_jwt_expiration, get_mongo_uri, get_secret_key
 from geocoding import EndpointError, resolve_endpoints
 from heatmap import heatmap_points
 from mailer import send_email
@@ -31,7 +31,7 @@ emergency_contact = ''
 
 # === Flask Setup ===
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": get_cors_origins()}}, supports_credentials=True)
 
 app.config["MONGO_URI"] = get_mongo_uri()
 mongo = PyMongo(app)

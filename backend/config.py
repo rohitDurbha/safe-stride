@@ -83,6 +83,20 @@ def get_jwt_expiration(environ=None):
     return seconds
 
 
+def get_cors_origins(environ=None):
+    """Return the browser origins allowed to call the API.
+
+    CORS_ORIGINS is a comma separated list, for example the Vercel URL of the
+    frontend. Each entry may also be a regular expression, which flask-cors
+    matches, so ``https://safe-stride.*\\.vercel\\.app`` covers preview URLs.
+    When it is empty every origin is allowed, which suits local development.
+    """
+    environ = os.environ if environ is None else environ
+    origins = [o.strip().rstrip("/") for o in environ.get("CORS_ORIGINS", "").split(",")]
+    origins = [o for o in origins if o]
+    return origins or "*"
+
+
 @dataclass(frozen=True)
 class SmtpSettings:
     host: str
