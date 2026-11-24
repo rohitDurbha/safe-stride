@@ -127,3 +127,30 @@ def test_pack_graph_keeps_only_what_routing_needs():
     lengths = sorted(geom.length for geom in pack.metric_geoms)
     assert 250 < lengths[0] < 450
     assert pack.nearest_node(-122.2712, 37.8044) == 1
+
+
+class FakeOx:
+    def __init__(self, failing):
+        self.failing = failing
+        self.settings = type("Settings", (), {"overpass_url": None})()
+        self.tried = []
+
+    def graph_from_place(self, place, network_type):
+        url = self.settings.overpass_url
+        self.tried.append(url)
+        if url in self.failing:
+            raise ConnectionError(f"{url} refused")
+        return f"graph from {url}"
+
+
+def test_download_falls_back_to_the_next_overpass_server():
+    ox = FakeOx(failing={"https://a"})
+    graph = street_graph.download_graph(urls=("https://a", "https://b"), ox=ox, log=quiet)
+    assert graph == "graph from https://b"
+    assert ox.tried == ["https://a", "https://b"]
+
+
+def test_download_reports_every_server_when_all_fail():
+    ox = FakeOx(failing={"https://a", "https://b"})
+    with pytest.raises(RuntimeError, match="https://a.*\n.*https://b"):
+        street_graph.download_graph(urls=("https://a", "https://b"), ox=ox, log=quiet)

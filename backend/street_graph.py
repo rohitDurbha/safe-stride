@@ -62,11 +62,33 @@ def _osmnx():
 
     # Keep the OSM "lit" tag on streets so night routes can prefer lit streets.
     ox.settings.useful_tags_way = sorted(set(ox.settings.useful_tags_way) | {"lit"})
+    # osmnx would otherwise save every raw Overpass reply under ./cache, which
+    # is the folder the deploy uploads with the function.
+    ox.settings.use_cache = False
     return ox
 
 
-def download_graph(place=GRAPH_PLACE):
-    return _osmnx().graph_from_place(place, network_type=NETWORK_TYPE)
+# Public Overpass servers, tried in order. The main one sometimes refuses
+# connections from cloud runners, and the mirrors serve the same data.
+OVERPASS_URLS = (
+    "https://overpass-api.de/api",
+    "https://overpass.private.coffee/api",
+    "https://overpass.kumi.systems/api",
+    "https://maps.mail.ru/osm/tools/overpass/api",
+)
+
+
+def download_graph(place=GRAPH_PLACE, urls=OVERPASS_URLS, ox=None, log=print):
+    ox = ox or _osmnx()
+    errors = []
+    for url in urls:
+        ox.settings.overpass_url = url
+        try:
+            return ox.graph_from_place(place, network_type=NETWORK_TYPE)
+        except Exception as exc:  # network errors differ between servers
+            log(f"Overpass server {url} failed: {exc}")
+            errors.append(f"{url}: {exc}")
+    raise RuntimeError("Every Overpass server failed:\n" + "\n".join(errors))
 
 
 def pack_graph(graph):
