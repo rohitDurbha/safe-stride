@@ -1,2 +1,14 @@
-# Runtime packages for the Python function in api/index.py.
--r backend/requirements.txt
+# Runtime packages for the Python function in api/index.py. Vercel needs a
+# plain list here, so this must match backend/requirements.txt (a test checks it).
+flask
+flask_pymongo
+flask_cors
+numpy
+networkx
+shapely
+pyproj
+geopy
+bcrypt
+PyJWT
+python-dotenv
+google-genai

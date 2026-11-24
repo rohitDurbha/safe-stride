@@ -60,7 +60,7 @@ jobs:
         run: python -m pytest
       - name: Restore the packed street graph
         id: graph-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: backend/cache/oakland_walk.pkl.gz
           key: street-graph-${{ hashFiles('backend/street_graph.py', 'backend/routing.py', 'backend/requirements-build.txt') }}
@@ -68,6 +68,14 @@ jobs:
         if: steps.graph-cache.outputs.cache-hit != 'true'
         working-directory: backend
         run: python street_graph.py
+      # Save right away, so a later failing step does not throw away a
+      # download that took minutes.
+      - name: Save the packed street graph
+        if: steps.graph-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: backend/cache/oakland_walk.pkl.gz
+          key: ${{ steps.graph-cache.outputs.cache-primary-key }}
 
       - uses: actions/setup-node@v4
         with:

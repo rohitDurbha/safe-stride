@@ -28,13 +28,17 @@ def test_env_files_are_never_uploaded():
         assert pattern in ignored
 
 
-def test_root_requirements_install_exactly_the_backend_runtime_packages():
-    lines = [
+def packages(path):
+    return [
         line.strip()
-        for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.startswith("#")
     ]
-    assert lines == ["-r backend/requirements.txt"]
+
+
+def test_root_requirements_match_the_backend_runtime_packages():
+    # Vercel cannot follow "-r" includes, so the root file repeats the list.
+    assert packages(ROOT / "requirements.txt") == packages(ROOT / "backend" / "requirements.txt")
 
 
 def test_runtime_requirements_leave_out_the_heavy_graph_builders():
