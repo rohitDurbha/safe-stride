@@ -19,13 +19,6 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // eslint-plugin-react-hooks 7 added React Compiler checks. These four
-      // still flag older map, profile and shadcn code, so they warn until the
-      // follow-up roadmap step rewrites those effects and turns them back on.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/purity": "warn",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
