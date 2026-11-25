@@ -1,0 +1,24 @@
+name: Live check
+
+# Probes the live site every morning and on demand. Each request is read only
+# or must be refused, so this never writes to the production database.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 14 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe the live site
+        run: python .github/scripts/live_check.py https://safe-stride-seven.vercel.app
