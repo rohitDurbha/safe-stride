@@ -1,107 +1,70 @@
-import * as maplibregl from "maplibre-gl";
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import "maplibre-gl/dist/maplibre-gl.css";
+import L from "leaflet";
 import type { LatLon } from "@/lib/mapSetup";
-import type { ColorScheme } from "@/lib/theme";
-import { cssColor } from "@/lib/theme";
+import { cssColor, type ColorScheme } from "@/lib/theme";
+import { CARTO_API_KEY, MAP_MAX_ZOOM, type MapStyle, tileSource } from "@/lib/tiles";
 
-maplibregl.setWorkerUrl(workerUrl);
-
-export type MapInstance = maplibregl.Map;
-
-/** The app's [lat, lon] pairs to MapLibre's [lon, lat]. */
-export const toLngLat = ([lat, lon]: LatLon): [number, number] => [lon, lat];
-
-/**
- * A GPU map with gestures tuned like a phone maps app: smooth fractional
- * zoom, inertia, and no rotation or tilt to get lost in.
- */
-export function createMap(container: HTMLElement, center: LatLon, scheme: ColorScheme): MapInstance {
-  const map = new maplibregl.Map({
-    container,
-    // A plain background until the real style arrives, in the right shade so nothing flashes.
-    style: {
-      version: 8,
-      sources: {},
-      layers: [{ id: "background", type: "background", paint: { "background-color": scheme === "dark" ? "#161616" : "#f2f2f2" } }],
-    },
-    center: toLngLat(center),
-    zoom: 15,
-    minZoom: 9,
-    maxZoom: 19.5,
-    dragRotate: false,
-    pitchWithRotate: false,
-    touchPitch: false,
-    // Phones with 3x screens look the same at 2x and draw far fewer pixels.
-    pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-    fadeDuration: 150,
-    attributionControl: { compact: true },
-  });
-  map.touchZoomRotate.disableRotation();
+export function createMap(element: HTMLElement, center: LatLon): L.Map {
+  const map = L.map(element, {
+    zoomControl: false,
+    attributionControl: true,
+    doubleClickZoom: true,
+    scrollWheelZoom: true,
+    zoomSnap: 0.5,
+    maxZoom: MAP_MAX_ZOOM,
+  }).setView(center, 15);
+  map.attributionControl.setPrefix(false);
   return map;
 }
 
-const ROUTE_SOURCE = "ss-route";
-const ROUTE_LAYERS = ["ss-route-line", "ss-route-casing"];
-
-/** Draw a route like Google Maps: a casing under a narrower line, a hollow start dot and an end pin. */
-export function showRoute(map: MapInstance, points: LatLon[]): () => void {
-  map.addSource(ROUTE_SOURCE, {
-    type: "geojson",
-    data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: points.map(toLngLat) } },
+export function createTiles(scheme: ColorScheme, style: MapStyle): L.TileLayer {
+  const source = tileSource(scheme, style, CARTO_API_KEY);
+  return L.tileLayer(source.url, {
+    attribution: source.attribution,
+    subdomains: source.subdomains ?? "abc",
+    maxNativeZoom: source.maxNativeZoom,
+    maxZoom: MAP_MAX_ZOOM,
+    className: source.className,
   });
-  map.addLayer({
-    id: "ss-route-casing",
-    type: "line",
-    source: ROUTE_SOURCE,
-    layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": cssColor("--route-casing", "#ffffff"), "line-width": ["interpolate", ["linear"], ["zoom"], 12, 6, 17, 13] },
+}
+
+export const userIcon = () =>
+  L.divIcon({ className: "user-marker", html: '<div class="user-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+
+const startIcon = () =>
+  L.divIcon({ className: "route-pin", html: '<div class="route-pin-start"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+
+const endIcon = () =>
+  L.divIcon({ className: "route-pin", html: '<div class="route-pin-end"></div>', iconSize: [30, 30], iconAnchor: [15, 36] });
+
+/**
+ * Draw a route the way Google Maps does: a wide casing under a narrower line,
+ * a hollow start dot and a filled end pin. Colours come from the theme.
+ */
+export function routeLayer(points: LatLon[]): L.LayerGroup {
+  const casing = L.polyline(points, {
+    color: cssColor("--route-casing", "#ffffff"),
+    weight: 11,
+    opacity: 1,
+    lineCap: "round",
+    lineJoin: "round",
+    interactive: false,
   });
-  map.addLayer({
-    id: "ss-route-line",
-    type: "line",
-    source: ROUTE_SOURCE,
-    layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": cssColor("--route", "#111111"), "line-width": ["interpolate", ["linear"], ["zoom"], 12, 3, 17, 7] },
+  const line = L.polyline(points, {
+    color: cssColor("--route", "#111111"),
+    weight: 6,
+    opacity: 1,
+    lineCap: "round",
+    lineJoin: "round",
+    interactive: false,
   });
-
-  const markers = [
-    new maplibregl.Marker({ element: pin("route-pin-start", 16), anchor: "center" }).setLngLat(toLngLat(points[0])),
-    new maplibregl.Marker({ element: pin("route-pin-end", 30), anchor: "bottom", offset: [0, -4] }).setLngLat(toLngLat(points[points.length - 1])),
-  ];
-  markers.forEach((m) => m.addTo(map));
-
-  return () => {
-    markers.forEach((m) => m.remove());
-    if (!map.getStyle()) return;
-    for (const id of ROUTE_LAYERS) if (map.getLayer(id)) map.removeLayer(id);
-    if (map.getSource(ROUTE_SOURCE)) map.removeSource(ROUTE_SOURCE);
-  };
+  return L.layerGroup([
+    casing,
+    line,
+    L.marker(points[0], { icon: startIcon(), keyboard: false, title: "Start" }),
+    L.marker(points[points.length - 1], { icon: endIcon(), keyboard: false, title: "Destination" }),
+  ]);
 }
 
-export function routeBounds(points: LatLon[]): [[number, number], [number, number]] {
-  const lons = points.map((p) => p[1]);
-  const lats = points.map((p) => p[0]);
-  return [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]];
+export function routeBounds(points: LatLon[]): L.LatLngBounds {
+  return L.latLngBounds(points.map(([lat, lon]) => L.latLng(lat, lon)));
 }
-
-function pin(className: string, size: number): HTMLElement {
-  const outer = document.createElement("div");
-  outer.className = "route-pin";
-  outer.style.width = `${size}px`;
-  outer.style.height = `${size}px`;
-  const inner = document.createElement("div");
-  inner.className = className;
-  outer.appendChild(inner);
-  return outer;
-}
-
-export function userMarker(map: MapInstance, position: LatLon): maplibregl.Marker {
-  const el = document.createElement("div");
-  el.className = "user-marker";
-  el.innerHTML = '<div class="user-dot"></div>';
-  el.setAttribute("aria-label", "Your location");
-  return new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(toLngLat(position)).addTo(map);
-}
-
-export { maplibregl };

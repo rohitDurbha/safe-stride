@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CSSProperties } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { OVERLAY_MAX_Z, TOAST_Z } from "@/lib/layers";
+import { LEAFLET_MAX_Z, TOAST_Z } from "@/lib/layers";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -13,6 +15,14 @@ vi.mock("sonner", () => ({
   toast: () => undefined,
 }));
 
+const require = createRequire(import.meta.url);
+
+function highestLeafletZIndex(): number {
+  const css = readFileSync(require.resolve("leaflet/dist/leaflet.css"), "utf8");
+  const values = [...css.matchAll(/z-index:\s*(\d+)/g)].map((m) => Number(m[1]));
+  return Math.max(...values);
+}
+
 function renderedZIndex(html: string): number {
   const match = html.match(/z-index:\s*(\d+)/);
   if (!match) throw new Error(`no z-index in ${html}`);
@@ -20,8 +30,10 @@ function renderedZIndex(html: string): number {
 }
 
 describe("toast layer", () => {
-  it("sits above the floating map panels", () => {
-    expect(TOAST_Z).toBeGreaterThan(OVERLAY_MAX_Z);
+  it("sits above every Leaflet pane and control", () => {
+    const leafletMax = highestLeafletZIndex();
+    expect(leafletMax).toBeLessThanOrEqual(LEAFLET_MAX_Z);
+    expect(TOAST_Z).toBeGreaterThan(LEAFLET_MAX_Z);
   });
 
   it("is applied to the Radix toast viewport", () => {

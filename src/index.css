@@ -35,7 +35,7 @@
 
     --radius: 1rem;
 
-    /* Map overlay colours, read by the map layers through CSS variables. */
+    /* Map overlay colours, read by Leaflet layers through CSS variables. */
     --route: 0 0% 7%;
     --route-casing: 0 0% 100%;
     --heat: 0 0% 7%;
@@ -86,7 +86,7 @@
   }
 
   /* Like other map apps, pinching zooms the map, never the page. Panels can
-     still scroll, and MapLibre takes every gesture on the map itself. Safari
+     still scroll, and Leaflet takes every gesture on the map itself. Safari
      ignores user-scalable=no in the viewport tag, so this rule covers it. */
   html,
   body {
@@ -228,28 +228,43 @@
   }
 }
 
-/* ===== MapLibre, restyled to match ===== */
+/* ===== Leaflet, restyled to match ===== */
 
-.maplibregl-map {
+.leaflet-container {
   font-family: inherit;
   background: hsl(var(--muted));
 }
 
-.maplibregl-ctrl-attrib.maplibregl-compact {
-  @apply !bg-card/90 !text-[11px] !text-muted-foreground;
+.leaflet-control-attribution {
+  @apply rounded-tl-lg !bg-card/85 !text-[10px] !text-muted-foreground;
 }
 
-.maplibregl-ctrl-attrib a {
+.leaflet-control-attribution a {
   @apply !text-muted-foreground;
 }
 
-.maplibregl-popup-content {
-  @apply !rounded-xl !border !border-border !bg-card !px-3.5 !py-2.5 text-[13px] font-medium !text-card-foreground;
+.leaflet-popup-content-wrapper,
+.leaflet-tooltip {
+  @apply !rounded-xl !border !border-border !bg-card !text-card-foreground;
   box-shadow: var(--elevation) !important;
 }
 
-.maplibregl-popup-tip {
-  display: none;
+.leaflet-popup-tip {
+  @apply !bg-card;
+}
+
+.leaflet-popup-content {
+  @apply !my-2.5 !mx-3.5 text-[13px] font-medium;
+}
+
+/* One OpenStreetMap tile source, turned monochrome. Dark mode inverts it and
+   rotates the hue back so water and parks keep their relative shades. */
+.mono-tiles {
+  filter: grayscale(1) contrast(1.05) brightness(1.03);
+}
+
+.dark .mono-tiles {
+  filter: grayscale(1) invert(1) brightness(0.92) contrast(0.88);
 }
 
 /* The user's position: a dot with a ring that breathes outwards. */
@@ -342,8 +357,7 @@
 
 /* On phones the attribution sits under the search bar instead of under the sheet. */
 @media (max-width: 767px) {
-  .maplibregl-ctrl-bottom-right {
+  .leaflet-top.leaflet-right {
     top: calc(env(safe-area-inset-top) + 4.75rem);
-    bottom: auto;
   }
 }

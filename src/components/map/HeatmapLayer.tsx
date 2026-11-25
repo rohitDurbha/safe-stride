@@ -1,98 +1,71 @@
 import { useEffect } from 'react';
+import L from 'leaflet';
 import { toast } from '@/components/ui/use-toast';
 import { apiUrl } from '@/lib/api';
-import type { ColorScheme } from '@/lib/theme';
-import { MapInstance, maplibregl } from './mapLayers';
+import { cssColor, type ColorScheme } from '@/lib/theme';
 
 interface HeatmapLayerProps {
-  map: MapInstance;
+  map: L.Map;
   scheme: ColorScheme;
-  /** Bumped whenever the base style reloads, which removes added layers. */
-  styleRevision: number;
 }
 
-const SOURCE = 'ss-heat';
-const LAYERS = ['ss-heat-points', 'ss-heat'];
+interface HeatmapPoint {
+  geometry?: { coordinates?: [number, number] };
+  properties?: { intensity?: number; type?: string };
+}
 
-function readableType(type: unknown): string {
-  if (typeof type !== 'string' || !type) return 'Reported incident';
+function readableType(type: string | undefined): string {
+  if (!type) return 'Reported incident';
   const lower = type.replace(/_/g, ' ').toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 /**
- * Incident hotspots drawn by the GPU: a soft monochrome heatmap when zoomed
- * out that turns into tappable dots when zoomed in.
+ * Incident hotspots as soft monochrome circles. Darker and larger means more
+ * reported incidents nearby. The points are fetched once per map.
  */
-const HeatmapLayer = ({ map, scheme, styleRevision }: HeatmapLayerProps) => {
+const HeatmapLayer = ({ map, scheme }: HeatmapLayerProps) => {
   useEffect(() => {
+    const group = L.layerGroup().addTo(map);
     const controller = new AbortController();
-    const shade = (a: number) => (scheme === 'dark' ? `rgba(255,255,255,${a})` : `rgba(17,17,17,${a})`);
-
-    const onClick = (e: maplibregl.MapLayerMouseEvent) => {
-      const feature = e.features?.[0];
-      if (!feature) return;
-      new maplibregl.Popup({ closeButton: false, offset: 10 })
-        .setLngLat(e.lngLat)
-        .setText(readableType(feature.properties?.type))
-        .addTo(map);
-    };
+    const ink = cssColor('--heat', scheme === 'dark' ? '#ffffff' : '#111111');
 
     fetch(apiUrl('/heatmap_data'), { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`heatmap_data returned HTTP ${res.status}`);
         return res.json();
       })
-      .then((features) => {
-        if (controller.signal.aborted || !Array.isArray(features) || !map.getStyle()) return;
-        map.addSource(SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features } });
-        const firstLabel = map.getStyle().layers.find((l) => l.type === 'symbol')?.id;
-        map.addLayer({
-          id: 'ss-heat',
-          type: 'heatmap',
-          source: SOURCE,
-          maxzoom: 17,
-          paint: {
-            'heatmap-weight': ['interpolate', ['linear'], ['coalesce', ['get', 'intensity'], 0.5], 0, 0.2, 1, 1],
-            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 0.8, 16, 2],
-            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 11, 14, 16, 40],
-            'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 15, 0.85, 17, 0],
-            'heatmap-color': [
-              'interpolate', ['linear'], ['heatmap-density'],
-              0, shade(0), 0.2, shade(0.12), 0.5, shade(0.28), 0.8, shade(0.45), 1, shade(0.6),
-            ],
-          },
-        }, firstLabel);
-        map.addLayer({
-          id: 'ss-heat-points',
-          type: 'circle',
-          source: SOURCE,
-          minzoom: 15,
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 4, 18, 9],
-            'circle-color': shade(0.7),
-            'circle-stroke-color': scheme === 'dark' ? '#161616' : '#ffffff',
-            'circle-stroke-width': 1.5,
-            'circle-opacity': ['interpolate', ['linear'], ['zoom'], 15, 0, 16, 1],
-            'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 15, 0, 16, 1],
-          },
+      .then((points: HeatmapPoint[]) => {
+        if (!Array.isArray(points)) return;
+        points.forEach((point) => {
+          const [lon, lat] = point.geometry?.coordinates ?? [];
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+          const intensity = Math.min(1, Math.max(0, Number(point.properties?.intensity) || 0));
+          L.circleMarker([lat, lon], {
+            radius: 10 + intensity * 16,
+            stroke: false,
+            fillColor: ink,
+            fillOpacity: 0.08 + intensity * 0.22,
+          })
+            .bindPopup(readableType(point.properties?.type))
+            .addTo(group);
         });
-        map.on('click', 'ss-heat-points', onClick);
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
         console.error('Error fetching heatmap data:', error);
-        toast({ variant: 'destructive', title: 'Heatmap unavailable', description: 'Could not load incident hotspots right now.' });
+        toast({
+          variant: 'destructive',
+          title: 'Heatmap unavailable',
+          description: 'Could not load incident hotspots right now.',
+        });
       });
 
     return () => {
       controller.abort();
-      map.off('click', 'ss-heat-points', onClick);
-      if (!map.getStyle()) return;
-      for (const id of LAYERS) if (map.getLayer(id)) map.removeLayer(id);
-      if (map.getSource(SOURCE)) map.removeSource(SOURCE);
+      group.remove();
     };
-  }, [map, scheme, styleRevision]);
+  }, [map, scheme]);
 
   return null;
 };
