@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Mic, MapPin, Square } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { readStoredUser } from "@/lib/storedUser";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, jsonHeaders, readToken } from "@/lib/api";
 
 // The browser speech API is not in the TypeScript DOM library yet, so these
 // cover only the parts this component touches.
@@ -118,23 +118,27 @@ const IncidentReporter = () => {
       return;
     }
 
+    const token = readToken();
+    if (!token) {
+      toast({
+        title: "Please log in",
+        description: "Log in so your report can alert your emergency contact.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Extract emergency contact email from user data
-    const emergencyContactEmail = userData?.emergency_contact?.email || "";
-    console.log("Emergency contact email:", emergencyContactEmail);
-
     try {
+      // The backend alerts the emergency contact saved on this account.
       const res = await fetch(apiUrl("/report_audio"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: jsonHeaders(token),
         body: JSON.stringify({
           transcript,
           lat: location.lat,
-          lon: location.lng,
-          emergency_contact: emergencyContactEmail // Pass the emergency contact email to the backend
+          lon: location.lng
         }),
       });
 
@@ -143,7 +147,9 @@ const IncidentReporter = () => {
       if (res.ok) {
         toast({
           title: "Report Submitted",
-          description: "Thank you for reporting. Your report was logged successfully."
+          description: data.contact_notified
+            ? "Thank you for reporting. Your emergency contact has been emailed."
+            : "Thank you for reporting. Your report was logged successfully."
         });
       } else {
         toast({

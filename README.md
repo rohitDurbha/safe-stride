@@ -64,7 +64,7 @@ The CI workflow in `.github/workflows/ci.yml` runs the backend tests on every pu
 
 ## Hosting
 
-Everything runs on one free Vercel project with no payment method attached. The React app is served as static files, and the Flask backend runs as a Python function at `/api` (`api/index.py`), so the browser calls the same site and only the backend ever sees a secret. Every push to `main` runs `.github/workflows/deploy.yml`, which tests the backend and the frontend, downloads and packs the Oakland street graph (cached between runs), deploys with `vercel deploy --prod`, checks that the page loads, and asks the live backend for a walking route in downtown Oakland.
+Everything runs on one free Vercel project with no payment method attached. The React app is served as static files, and the Flask backend runs as a Python function at `/api` (`api/index.py`), so the browser calls the same site and only the backend ever sees a secret. Every push to `main` runs `.github/workflows/deploy.yml`, which tests the backend and the frontend, downloads and packs the Oakland street graph (cached between runs), deploys with `vercel deploy --prod`, checks that the page loads, and asks the live backend for a walking route in downtown Oakland, and then runs `.github/scripts/live_check.py` against every endpoint. The Live check workflow runs the same probe every morning and from the Actions tab. Every request it sends is read only or must be refused, so it never writes to the database.
 
 | Repository secret | Purpose |
 | --- | --- |
@@ -106,4 +106,4 @@ This project is built with:
 
 ## Sign in
 
-SafeStride uses one login system, the Flask backend's email and password sign up with JWT tokens, so the frontend needs no Firebase or other third party keys.
+SafeStride uses one login system, the Flask backend's email and password sign up with JWT tokens, so the frontend needs no Firebase or other third party keys. The account routes live in `backend/accounts.py`. Incident reports (`/report_audio` in `backend/reports.py`) need a login token, and the alert email goes to the emergency contact saved on that account rather than to any address the browser sends.

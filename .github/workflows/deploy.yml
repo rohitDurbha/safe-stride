@@ -139,3 +139,5 @@ jobs:
           done
           echo "::error::The backend did not return a route"
           exit 1
+      - name: Probe every live endpoint
+        run: python .github/scripts/live_check.py "$SITE_URL"

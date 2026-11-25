@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_API_URL, apiUrl, resolveApiUrl } from "./api";
+import { DEFAULT_API_URL, apiUrl, jsonHeaders, readToken, resolveApiUrl } from "./api";
 
 describe("resolveApiUrl", () => {
   it("falls back to the local Flask server when the setting is missing or blank", () => {
@@ -28,5 +28,24 @@ describe("apiUrl", () => {
 
   it("uses the resolved build setting when no base is given", () => {
     expect(apiUrl("/me")).toMatch(/\/me$/);
+  });
+});
+
+describe("readToken", () => {
+  it("returns the saved token or null", () => {
+    expect(readToken({ getItem: () => "abc" })).toBe("abc");
+    expect(readToken({ getItem: () => null })).toBeNull();
+    expect(readToken({ getItem: () => "" })).toBeNull();
+  });
+
+  it("returns null when storage is blocked", () => {
+    expect(readToken({ getItem: () => { throw new Error("blocked"); } })).toBeNull();
+  });
+});
+
+describe("jsonHeaders", () => {
+  it("adds the bearer token only when signed in", () => {
+    expect(jsonHeaders("abc")).toEqual({ "Content-Type": "application/json", Authorization: "Bearer abc" });
+    expect(jsonHeaders(null)).toEqual({ "Content-Type": "application/json" });
   });
 });
