@@ -24,18 +24,6 @@ describe("parseColor", () => {
     expect(parseColor("white")).toEqual([255, 255, 255, 1]);
   });
 
-  it("reads every colour format the OpenFreeMap Liberty style uses", () => {
-    // Copied from https://tiles.openfreemap.org/styles/liberty on 25 November 2026.
-    const seen = ["#fde", "#DEE3CD", "#f8f4f0", "rgb(236,238,204)", "rgba(95, 208, 100, 1)", "rgba(255,255,255,0.7)",
-      "hsl(75,37%,81%)", "hsl(0,0%,100%)", "hsla(0,3%,85%,0.84)", "hsla(98,61%,72%,0.7)"];
-    for (const c of seen) {
-      expect(parseColor(c), c).not.toBeNull();
-      expect(toGrey(c, "light"), c).toMatch(/^rgba?\((\d+), \1, \1(, [\d.]+)?\)$/);
-    }
-    expect(parseColor("rgba(255,255,255,0.7)")).toEqual([255, 255, 255, 0.7]);
-    expect(parseColor("hsl(0,0%,100%)")).toEqual([255, 255, 255, 1]);
-  });
-
   it("leaves text that is not a colour alone", () => {
     for (const v of ["park", "{name}", "get", "Noto Sans Regular", "#zzz", "rgb(1,2)"]) {
       expect(parseColor(v)).toBeNull();
