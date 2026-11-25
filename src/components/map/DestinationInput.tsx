@@ -1,14 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
+import { Place, searchPlaces } from '@/lib/places';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 export type LatLon = [number, number];
 
-interface Suggestion {
-  name: string;
-  coords: LatLon;
-}
+type Suggestion = Place;
 
 interface DestinationInputProps {
   destination: string;
@@ -37,34 +34,22 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
   const destinationDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const sourceDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchSuggestions = async (query: string, setSuggestions: (suggestions: Suggestion[]) => void) => {
-    if (query.length < 3) return setSuggestions([]);
+  // Each box counts its searches so a slow reply never replaces a newer one.
+  const destinationSearchRef = useRef(0);
+  const sourceSearchRef = useRef(0);
+
+  const fetchSuggestions = async (
+    query: string,
+    counter: React.MutableRefObject<number>,
+    setSuggestions: (suggestions: Suggestion[]) => void,
+  ) => {
+    const id = ++counter.current;
     try {
-      const response = await axios.get(
-        `https://nominatim.openstreetmap.org/search`,
-        {
-          params: {
-            format: 'json',
-            q: query,
-            viewbox: '-122.35,37.90,-122.15,37.70',
-            bounded: 1,
-          },
-          headers: {
-            'Accept-Language': 'en',
-            'User-Agent': 'SafeStrideApp/1.0',
-          },
-        }
-      );
-      const suggestions: Suggestion[] = response.data
-        .map((item: { display_name: string; lat: string; lon: string }) => ({
-          name: item.display_name,
-          coords: [Number(item.lat), Number(item.lon)] as LatLon,
-        }))
-        .filter((item: Suggestion) => item.coords.every(Number.isFinite));
-      setSuggestions(suggestions.slice(0, 5));
+      const places = await searchPlaces(query);
+      if (id === counter.current) setSuggestions(places);
     } catch (err) {
-      console.error('Error fetching suggestions', err);
-      setSuggestions([]);
+      console.warn('Address suggestions are unavailable right now', err);
+      if (id === counter.current) setSuggestions([]);
     }
   };
 
@@ -73,7 +58,7 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
     setDestination(val);
     setDestinationCoords(null);
     if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
-    destinationDebounceRef.current = setTimeout(() => fetchSuggestions(val, setDestinationSuggestions), 300);
+    destinationDebounceRef.current = setTimeout(() => fetchSuggestions(val, destinationSearchRef, setDestinationSuggestions), 500);
   };
 
   const handleSourceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +66,7 @@ const DestinationInput: React.FC<DestinationInputProps> = ({
     setSource(val);
     setSourceCoords(null);
     if (sourceDebounceRef.current) clearTimeout(sourceDebounceRef.current);
-    sourceDebounceRef.current = setTimeout(() => fetchSuggestions(val, setSourceSuggestions), 300);
+    sourceDebounceRef.current = setTimeout(() => fetchSuggestions(val, sourceSearchRef, setSourceSuggestions), 500);
   };
 
   const handleSuggestionClick = (
