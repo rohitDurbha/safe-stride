@@ -74,3 +74,8 @@ export function createPlaceSearch(
 }
 
 export const searchPlaces = createPlaceSearch();
+
+/** The first part of a Nominatim address, which is the place's own name. */
+export function shortName(name: string): string {
+  return name.split(", ")[0] || name;
+}

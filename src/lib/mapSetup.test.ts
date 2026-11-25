@@ -67,3 +67,11 @@ describe("routeQuery", () => {
     });
   });
 });
+
+describe("routeQuery period", () => {
+  it("adds a forced period only when one is chosen", () => {
+    const req = { destination: "Lake Merritt", source: "Uptown", destinationCoords: null, sourceCoords: null, userLocation: null };
+    expect(routeQuery(req)!.has("period")).toBe(false);
+    expect(routeQuery({ ...req, period: "night" })!.get("period")).toBe("night");
+  });
+});

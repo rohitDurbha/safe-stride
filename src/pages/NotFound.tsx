@@ -5,22 +5,23 @@ const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error(
-      "404 Error: User attempted to access non-existent route:",
-      location.pathname
-    );
+    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background px-6">
+      <div className="dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_65%)]" />
+      <div className="relative text-center animate-blur-in">
+        <p className="text-[72px] font-semibold leading-none tracking-tighter">404</p>
+        <p className="mt-3 text-[17px] text-muted-foreground">Oops! Page not found</p>
+        <a
+          href="/"
+          className="press mt-8 inline-flex h-12 items-center rounded-full bg-foreground px-6 text-[15px] font-medium text-background"
+        >
+          Back to the map
         </a>
       </div>
-    </div>
+    </main>
   );
 };
 

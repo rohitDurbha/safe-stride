@@ -1,217 +1,74 @@
-import { API_URL } from "@/lib/api";
+import { apiUrl, jsonHeaders, readToken } from "@/lib/api";
+import { fetchProfile, saveSession } from "@/lib/session";
+import type { StoredUser } from "@/lib/storedUser";
 
-export const BASE_URL = API_URL;
+async function readJson(res: Response): Promise<Record<string, unknown>> {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+function failure(data: Record<string, unknown>, fallback: string): Error {
+  return new Error(typeof data.error === "string" ? data.error : fallback);
+}
+
+/** Save the token, then load the full account so the app can show it. */
+async function startSession(token: string, fallback: StoredUser): Promise<StoredUser> {
+  const profile = (await fetchProfile(token).catch(() => null)) ?? fallback;
+  saveSession(token, profile);
+  return profile;
+}
 
 export async function registerUser(
   email: string,
   password: string,
   name: string,
   contactName: string,
-  contactEmail: string
-) {
-  try {
-    const res = await fetch(`${BASE_URL}/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        name,
-        emergency_contact: {
-          name: contactName,
-          email: contactEmail
-        }
-      })
-    });
-
-    const data = await res.json();
-    
-    // Improved error handling based on status code
-    if (!res.ok) {
-      if (res.status === 409) {
-        throw new Error("User already exists");
-      } else {
-        throw new Error(data.error || data.detail || "Signup failed");
-      }
-    }
-    
-    localStorage.setItem("token", data.token);
-    return data;
-  } catch (error) {
-    console.error("Registration error:", error);
-    throw error;
-  }
+  contactEmail: string,
+): Promise<StoredUser> {
+  const emergency_contact = { name: contactName, email: contactEmail };
+  const res = await fetch(apiUrl("/signup"), {
+    method: "POST",
+    headers: jsonHeaders(null),
+    body: JSON.stringify({ email, password, name, emergency_contact }),
+  });
+  const data = await readJson(res);
+  if (res.status === 409) throw new Error("User already exists");
+  if (!res.ok || typeof data.token !== "string") throw failure(data, "Signup failed");
+  return startSession(data.token, { email, name, emergency_contact });
 }
 
-export async function loginUser(email: string, password: string) {
-  try {
-    const res = await fetch(`${BASE_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-    
-    // Improved error handling
-    if (!res.ok) {
-      throw new Error(data.error || data.detail || "Login failed");
-    }
-    
-    localStorage.setItem("token", data.token);
-    return data;
-  } catch (error) {
-    console.error("Login error:", error);
-    throw error;
-  }
+export async function loginUser(email: string, password: string): Promise<StoredUser> {
+  const res = await fetch(apiUrl("/login"), {
+    method: "POST",
+    headers: jsonHeaders(null),
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await readJson(res);
+  if (!res.ok || typeof data.token !== "string") throw failure(data, "Invalid email or password");
+  return startSession(data.token, { email });
 }
 
-// Shape of the user returned by the backend /me route.
-export interface AuthUser {
-  id: string;
-  email: string;
-}
-
-export async function onAuthChanged(callback: (user: AuthUser | null) => void) {
-  const token = localStorage.getItem("token");
-  if (!token) return callback(null);
-
-  try {
-    const res = await fetch(`${BASE_URL}/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-
-    console.log('Auth check response status:', res.status);
-
-    if (res.ok) {
-      const user = await res.json();
-      callback(user);
-    } else {
-      console.error('Auth check failed with status:', res.status);
-      callback(null);
-    }
-  } catch (error) {
-    console.error("Auth check error:", error);
-    callback(null);
-  }
-}
-
+/** Change the account email and emergency contact on the server. */
 export async function updateUserProfile(
+  current: StoredUser | null,
   email: string,
   contactName: string,
-  contactEmail: string
-) {
-  const token = localStorage.getItem("token");
-  if (!token) throw new Error("No authentication token found");
-
-  console.log("Updating profile with:", { email, contactName, contactEmail });
-  
-  try {
-    // First, update local storage immediately (optimistic update)
-    const userData = JSON.parse(localStorage.getItem('safeStrideUser') || '{}');
-    const updatedUserData = {
-      ...userData,
-      email,
-      emergency_contact: {
-        name: contactName,
-        email: contactEmail
-      }
-    };
-    
-    // Update local storage right away
-    localStorage.setItem('safeStrideUser', JSON.stringify(updatedUserData));
-    
-    // Create request options with mode: 'no-cors' to handle CORS issues
-    const requestOptions = {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        email,
-        emergency_contact: {
-          name: contactName,
-          email: contactEmail
-        }
-      })
-    };
-
-    console.log("Using URL:", `${BASE_URL}/update_profile`);
-    console.log("Request options:", requestOptions);
-    
-    const res = await fetch(`${BASE_URL}/update_profile`, requestOptions);
-    
-    console.log("Profile update response status:", res.status);
-    
-    // Check if the response is JSON
-    const contentType = res.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || data.detail || "Failed to update profile");
-      }
-      
-      return data;
-    } else {
-      // Handle non-JSON responses
-      const textResponse = await res.text();
-      console.log("Non-JSON response:", textResponse);
-      
-      if (!res.ok) {
-        throw new Error(`Failed to update profile: ${res.status} ${res.statusText}`);
-      }
-      
-      return { message: "Profile updated successfully" };
-    }
-  } catch (error) {
-    console.error("Profile update error:", error);
-    
-    // Even if the backend request failed, we've already updated localStorage
-    // So the UI will still reflect the changed data
-    
-    // Only rethrow if it's not a network error that might be due to CORS
-    if (error instanceof TypeError && error.message === "Failed to fetch") {
-      console.warn("Network error occurred, but profile was updated locally");
-      return { message: "Profile updated locally. Server update failed, but your changes are saved in this browser.", localOnly: true };
-    }
-    
-    throw error;
-  }
-}
-
-// Add a new function to get the emergency contact email
-export async function getEmergencyContactEmail(): Promise<string | null> {
-  try {
-    // Try to get from localStorage first (fastest)
-    const userData = JSON.parse(localStorage.getItem('safeStrideUser') || '{}');
-    if (userData?.emergency_contact?.email) {
-      return userData.emergency_contact.email;
-    }
-    
-    // If not in localStorage, try to fetch from API
-    const token = localStorage.getItem("token");
-    if (!token) return null;
-    
-    const res = await fetch(`${BASE_URL}/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    
-    if (res.ok) {
-      const user = await res.json();
-      if (user?.emergency_contact?.email) {
-        return user.emergency_contact.email;
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Error getting emergency contact:", error);
-    return null;
-  }
+  contactEmail: string,
+): Promise<StoredUser> {
+  const token = readToken();
+  if (!token) throw new Error("Please sign in again.");
+  const emergency_contact = { name: contactName, email: contactEmail };
+  const res = await fetch(apiUrl("/update_profile"), {
+    method: "PUT",
+    headers: jsonHeaders(token),
+    body: JSON.stringify({ email, emergency_contact }),
+  });
+  const data = await readJson(res);
+  if (!res.ok) throw failure(data, "Failed to update profile");
+  const updated = { ...current, email, emergency_contact };
+  saveSession(token, updated);
+  return updated;
 }

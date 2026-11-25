@@ -88,6 +88,10 @@ Reports are saved in MongoDB and replayed into the graph when the server starts,
 
 When someone sends a spoken report, `backend/report_classifier.py` asks Gemini to match the transcript against the Oakland crime categories and keeps the answer with the highest confidence. If `GOOGLE_API_KEY` is not set, or the Gemini call fails, or the reply is not valid JSON, the backend falls back to the keyword rules in `backend/keyword_classifier.py`. Those rules check the most specific and serious categories first, so a report about someone pulling a gun to take a phone is filed as a robbery and a stolen car is not filed as petty theft. A report that matches no rule is saved as `UNKNOWN`, which means the app keeps working offline and in tests without any API key.
 
+## Interface
+
+The app is one full screen map in the style of Google Maps, built mobile first. Search sits in a floating bar at the top, and route details, the heatmap and voice reports live in a bottom sheet that can be dragged to a peek on phones and becomes a side panel on wider screens. Everything is monochrome, the map uses CARTO's grey basemaps, and the whole interface follows the system light or dark setting. The design tokens live in `src/index.css` and the map screen in `src/components/MapScreen.tsx`.
+
 ## What technologies are used for this project?
 
 This project is built with:

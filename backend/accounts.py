@@ -80,6 +80,17 @@ def current_user(users, signer):
     return user, None
 
 
+def public_profile(user):
+    """What the signed in user may read about their own account."""
+    contact = user.get("emergency_contact") or {}
+    return {
+        "id": str(user["_id"]),
+        "email": user.get("email", ""),
+        "name": user.get("name") or "",
+        "emergency_contact": {"name": contact.get("name", ""), "email": contact.get("email", "")},
+    }
+
+
 def create_accounts_blueprint(users, signer, send_email):
     bp = Blueprint("accounts", __name__)
 
@@ -135,7 +146,7 @@ def create_accounts_blueprint(users, signer, send_email):
         user, error = current_user(users, signer)
         if error:
             return error
-        return jsonify({"id": str(user["_id"]), "email": user["email"]})
+        return jsonify(public_profile(user))
 
     @bp.route("/update_profile", methods=["PUT"])
     def update_profile():

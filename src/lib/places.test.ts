@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPlaceSearch, parsePlaces, placeSearchUrl } from "./places";
+import { createPlaceSearch, parsePlaces, placeSearchUrl, shortName } from "./places";
 
 const reply = [
   { display_name: "Lake Merritt, Oakland", lat: "37.80", lon: "-122.25" },
@@ -79,5 +79,12 @@ describe("createPlaceSearch", () => {
   it("throws on an error reply", async () => {
     const search = createPlaceSearch(fakeFetch([], {}, 429), 1000, fakeClock());
     await expect(search("Lake Merritt")).rejects.toThrow("429");
+  });
+});
+
+describe("shortName", () => {
+  it("keeps the place's own name", () => {
+    expect(shortName("Lake Merritt, Oakland, Alameda County")).toBe("Lake Merritt");
+    expect(shortName("Oakland")).toBe("Oakland");
   });
 });

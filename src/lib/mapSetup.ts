@@ -55,6 +55,8 @@ export interface RouteRequest {
   destinationCoords: LatLon | null;
   sourceCoords: LatLon | null;
   userLocation: LatLon | null;
+  /** Force day or night scoring. Leave unset to use the time in Oakland now. */
+  period?: "day" | "night" | null;
 }
 
 /**
@@ -81,5 +83,6 @@ export function routeQuery(req: RouteRequest): URLSearchParams | null {
     params.set("start_lat", String(req.userLocation[0]));
     params.set("start_lon", String(req.userLocation[1]));
   }
+  if (req.period) params.set("period", req.period);
   return params;
 }

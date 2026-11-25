@@ -2,92 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * SafeStride is monochrome. Every colour is a shade of neutral grey, and
+ * depth comes from elevation (blur and soft shadows) rather than hue.
+ */
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 7%;
 
-    /* Custom color values for our navigation app */
-    --primary: 195 90% 57%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 0 0% 93%;
+    --accent-foreground: 0 0% 9%;
 
-    --secondary: 213 92% 91%;
-    --secondary-foreground: 195 90% 57%;
+    /* Alerts stay monochrome too and are marked by an icon instead of red. */
+    --destructive: 0 0% 9%;
+    --destructive-foreground: 0 0% 98%;
 
-    --muted: 240 86% 97%;
-    --muted-foreground: 220 3% 57%;
+    --border: 0 0% 89%;
+    --input: 0 0% 86%;
+    --ring: 0 0% 9%;
 
-    --accent: 270 89% 86%;
-    --accent-foreground: 273 75% 51%;
+    --radius: 1rem;
 
-    --destructive: 355 100% 64%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 195 90% 57%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Map overlay colours, read by Leaflet layers through CSS variables. */
+    --route: 0 0% 7%;
+    --route-casing: 0 0% 100%;
+    --heat: 0 0% 7%;
+    --elevation: 0 8px 30px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --primary: 0 0% 96%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 62%;
+    --accent: 0 0% 17%;
+    --accent-foreground: 0 0% 96%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 0% 96%;
+    --destructive-foreground: 0 0% 9%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 22%;
+    --ring: 0 0% 83%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --route: 0 0% 98%;
+    --route-casing: 0 0% 9%;
+    --heat: 0 0% 100%;
+    --elevation: 0 8px 30px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.4);
   }
 }
 
@@ -96,33 +79,201 @@
     @apply border-border;
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
-/* The pulsing dot that marks the user's location on the map. */
+
+@layer components {
+  /* A floating surface over the map, frosted like the Google Maps panels. */
+  .surface {
+    @apply border border-border/70 bg-card/90 text-card-foreground backdrop-blur-xl;
+    box-shadow: var(--elevation);
+  }
+
+  .surface-solid {
+    @apply border border-border/70 bg-card text-card-foreground;
+    box-shadow: var(--elevation);
+  }
+
+  /* Small pressable feedback used by buttons, chips and list rows. */
+  .press {
+    @apply transition-transform duration-150 ease-out active:scale-[0.97];
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Text with a light sweeping across it while something loads. */
+  .shimmer-text {
+    background: linear-gradient(
+      100deg,
+      hsl(var(--muted-foreground)) 35%,
+      hsl(var(--foreground)) 50%,
+      hsl(var(--muted-foreground)) 65%
+    );
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* A faint dot grid behind the sign in screen. */
+  .dot-grid {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.12) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ===== Leaflet, restyled to match ===== */
+
+.leaflet-container {
+  font-family: inherit;
+  background: hsl(var(--muted));
+}
+
+.leaflet-control-attribution {
+  @apply rounded-tl-lg !bg-card/80 !text-[10px] !text-muted-foreground backdrop-blur;
+}
+
+.leaflet-control-attribution a {
+  @apply !text-muted-foreground;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-tooltip {
+  @apply !rounded-xl !border !border-border !bg-card !text-card-foreground;
+  box-shadow: var(--elevation) !important;
+}
+
+.leaflet-popup-tip {
+  @apply !bg-card;
+}
+
+.leaflet-popup-content {
+  @apply !my-2.5 !mx-3.5 text-[13px] font-medium;
+}
+
+/* The user's position: a dot with a ring that breathes outwards. */
 .user-marker {
-  background-color: transparent;
+  background: transparent;
 }
 
-.pulse {
-  border-radius: 50%;
-  height: 14px;
-  width: 14px;
-  background: rgba(51, 195, 240, 1);
-  border: 3px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 0 0 rgba(51, 195, 240, 0.4);
-  animation: pulse 2s infinite;
+.user-dot {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: hsl(var(--foreground));
+  border: 3px solid hsl(var(--background));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
 }
 
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(51, 195, 240, 0.4);
+.user-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: hsl(var(--foreground) / 0.25);
+  animation: breathe 2.4s ease-out infinite;
+  z-index: -1;
+}
+
+/* Route endpoints. */
+.route-pin {
+  background: transparent;
+}
+
+.route-pin-start {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: hsl(var(--background));
+  border: 4px solid hsl(var(--foreground));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+
+.route-pin-end {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px 9999px 9999px 0;
+  transform: rotate(-45deg);
+  background: hsl(var(--foreground));
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.3);
+}
+
+.route-pin-end::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: hsl(var(--background));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(51, 195, 240, 0);
+}
+
+@keyframes breathe {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(51, 195, 240, 0);
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* On phones the attribution sits under the search bar instead of under the sheet. */
+@media (max-width: 767px) {
+  .leaflet-top.leaflet-right {
+    top: calc(env(safe-area-inset-top) + 4.75rem);
   }
 }

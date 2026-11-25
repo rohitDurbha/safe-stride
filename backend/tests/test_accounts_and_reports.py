@@ -86,6 +86,9 @@ def test_signup_then_login_and_me(env):
     res = env.client.get("/me", headers=auth(token))
     assert res.status_code == 200
     assert res.get_json()["email"] == "ana@example.com"
+    assert res.get_json()["name"] == "Ana"
+    assert res.get_json()["emergency_contact"] == {"name": "Kim", "email": "kim@example.com"}
+    assert "password_hash" not in res.get_json()
 
 
 def test_login_with_unknown_email_is_401_not_a_crash(env):
