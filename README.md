@@ -90,7 +90,7 @@ When someone sends a spoken report, `backend/report_classifier.py` asks Gemini t
 
 ## Interface
 
-The app is one full screen map in the style of Google Maps, built mobile first. Search sits in a floating bar at the top, and route details, the heatmap and voice reports live in a bottom sheet that can be dragged to a peek on phones and becomes a side panel on wider screens. Everything is monochrome, the map uses CARTO's grey basemaps, and the whole interface follows the system light or dark setting. The design tokens live in `src/index.css` and the map screen in `src/components/MapScreen.tsx`.
+The app is one full screen map in the style of Google Maps, built mobile first. Search sits in a floating bar at the top, and route details, the heatmap and voice reports live in a bottom sheet that can be dragged to a peek on phones and becomes a side panel on wider screens. Everything is monochrome, the map uses the standard OpenStreetMap tiles turned grey with a CSS filter (and inverted in dark mode), so no map key is needed, and the whole interface follows the system light or dark setting. The design tokens live in `src/index.css` and the map screen in `src/components/MapScreen.tsx`.
 
 ## What technologies are used for this project?
 

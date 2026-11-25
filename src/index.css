@@ -183,6 +183,16 @@
   @apply !my-2.5 !mx-3.5 text-[13px] font-medium;
 }
 
+/* One OpenStreetMap tile source, turned monochrome. Dark mode inverts it and
+   rotates the hue back so water and parks keep their relative shades. */
+.mono-tiles {
+  filter: grayscale(1) contrast(1.05) brightness(1.03);
+}
+
+.dark .mono-tiles {
+  filter: grayscale(1) invert(1) brightness(0.92) contrast(0.88);
+}
+
 /* The user's position: a dot with a ring that breathes outwards. */
 .user-marker {
   background: transparent;

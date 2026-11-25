@@ -72,14 +72,14 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
     setMap(created);
   }, [startCenter]);
 
-  // Greyscale tiles that follow the light or dark system setting.
+  // OpenStreetMap tiles, made grey (or inverted in dark mode) by index.css.
   useEffect(() => {
     if (!map) return;
-    const tiles = createTiles(scheme).addTo(map);
+    const tiles = createTiles().addTo(map);
     return () => {
       tiles.remove();
     };
-  }, [map, scheme]);
+  }, [map]);
 
   // Keep the map sized to the window, including mobile browser bars.
   useEffect(() => {

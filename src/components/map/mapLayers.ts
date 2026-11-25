@@ -1,16 +1,13 @@
 import L from "leaflet";
 import type { LatLon } from "@/lib/mapSetup";
-import type { ColorScheme } from "@/lib/theme";
 import { cssColor } from "@/lib/theme";
 
-// CARTO's free basemaps are already greyscale, which suits the monochrome UI.
-const TILE_URLS: Record<ColorScheme, string> = {
-  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-};
+// The standard OpenStreetMap tiles need no key. index.css turns them grey in
+// light mode and inverts them for dark mode, so one tile source serves both.
+export const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export function createMap(element: HTMLElement, center: LatLon): L.Map {
   const map = L.map(element, {
@@ -25,12 +22,11 @@ export function createMap(element: HTMLElement, center: LatLon): L.Map {
   return map;
 }
 
-export function createTiles(scheme: ColorScheme): L.TileLayer {
-  return L.tileLayer(TILE_URLS[scheme], {
+export function createTiles(): L.TileLayer {
+  return L.tileLayer(TILE_URL, {
     attribution: ATTRIBUTION,
-    subdomains: "abcd",
-    maxZoom: 20,
-    detectRetina: false,
+    maxZoom: 19,
+    className: "mono-tiles",
   });
 }
 
