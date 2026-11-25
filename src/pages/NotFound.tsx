@@ -11,7 +11,7 @@ const NotFound = () => {
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background px-6">
       <div className="dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_65%)]" />
-      <div className="relative text-center animate-blur-in">
+      <div className="relative text-center animate-fade-up">
         <p className="text-[72px] font-semibold leading-none tracking-tighter">404</p>
         <p className="mt-3 text-[17px] text-muted-foreground">Oops! Page not found</p>
         <a

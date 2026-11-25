@@ -137,7 +137,7 @@ export const ReportBody = ({ user, fallbackLocation }: ReportBodyProps) => {
 
   if (!signedIn) {
     return (
-      <div className="space-y-4 py-2 text-center animate-blur-in">
+      <div className="space-y-4 py-2 text-center">
         <p className="text-[14px] text-muted-foreground">Sign in so a report can alert your emergency contact.</p>
         <Button asChild size="lg" className="w-full">
           <Link to="/login"><LogIn /> Sign in</Link>
@@ -149,7 +149,7 @@ export const ReportBody = ({ user, fallbackLocation }: ReportBodyProps) => {
   const recording = phase === 'recording';
 
   return (
-    <div className="space-y-6 animate-blur-in">
+    <div className="space-y-6">
       <div className="flex flex-col items-center gap-4 pt-2">
         <div className="relative grid h-36 w-36 place-items-center">
           {recording && (
@@ -178,7 +178,7 @@ export const ReportBody = ({ user, fallbackLocation }: ReportBodyProps) => {
           {phase === 'recording' ? 'Listening' : phase === 'sending' ? 'Sending your report' : phase === 'sent' ? 'Report sent' : 'Tap to start speaking'}
         </p>
         {transcript && (
-          <p className="max-w-sm rounded-2xl bg-muted px-4 py-3 text-center text-[14px] italic animate-blur-in">“{transcript}”</p>
+          <p className="max-w-sm rounded-2xl bg-muted px-4 py-3 text-center text-[14px] italic animate-fade-up">“{transcript}”</p>
         )}
       </div>
 

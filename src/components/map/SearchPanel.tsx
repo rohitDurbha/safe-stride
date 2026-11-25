@@ -104,7 +104,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
 
   if (mode === 'pill') {
     return (
-      <div className="surface flex h-14 items-center gap-1 rounded-full pl-2 pr-1.5 animate-blur-in">
+      <div className="surface flex h-14 items-center gap-1 rounded-full pl-2 pr-1.5">
         <button
           type="button"
           onClick={onOpen}
@@ -120,7 +120,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
 
   if (mode === 'route') {
     return (
-      <div className="surface flex h-14 items-center gap-1 rounded-full pl-1.5 pr-1.5 animate-blur-in">
+      <div className="surface flex h-14 items-center gap-1 rounded-full pl-1.5 pr-1.5">
         <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear route" className="shrink-0">
           <X className="h-5 w-5" />
         </Button>
@@ -144,7 +144,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
   return (
     <form
       onSubmit={submit}
-      className="surface-solid flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[28px] animate-blur-in"
+      className="surface-solid flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[28px] animate-fade-up"
     >
       <div className="flex items-center gap-2 px-2 pt-2">
         <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close directions">
@@ -211,7 +211,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
       </div>
 
       {showList && (
-        <ul className="min-h-0 flex-1 overflow-y-auto border-t border-border/70 py-1.5" aria-label="Suggested places">
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border/70 py-1.5 animate-fade-up" aria-label="Suggested places">
           {searching && suggestions.length === 0 && (
             <li className="flex items-center gap-3 px-5 py-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Searching Oakland
@@ -220,7 +220,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
           {suggestions.map((s, i) => {
             const [title, ...rest] = s.name.split(', ');
             return (
-              <li key={`${s.name}-${i}`} className="animate-blur-in" style={{ animationDelay: `${i * 40}ms` }}>
+              <li key={`${s.name}-${i}`}>
                 <button
                   type="button"
                   onClick={() => pick(s)}

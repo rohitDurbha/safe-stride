@@ -36,7 +36,7 @@ export const RouteBody = ({ summary, onEdit, onClear }: RouteBodyProps) => {
   const stats = routeStats(summary);
   const exposure = Math.max(0.04, 1 - stats.saferBy / 100);
   return (
-    <div className="space-y-5 animate-blur-in">
+    <div className="space-y-5">
       <div className="space-y-3 rounded-2xl bg-muted p-4">
         <p className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">Reported crime along the way</p>
         <Meter label="This route" value={exposure} caption={stats.duration} strong />
@@ -68,8 +68,8 @@ const Meter = ({ label, value, caption, strong }: { label: string; value: number
     </div>
     <div className="h-2 overflow-hidden rounded-full bg-background">
       <div
-        className={cn('h-full rounded-full transition-[width] duration-700 ease-spring', strong ? 'bg-foreground' : 'bg-muted-foreground/40')}
-        style={{ width: `${Math.round(value * 100)}%` }}
+        className={cn('meter-fill h-full w-full origin-left rounded-full', strong ? 'bg-foreground' : 'bg-muted-foreground/40')}
+        style={{ transform: `scaleX(${value.toFixed(3)})` }}
       />
     </div>
   </div>
@@ -165,7 +165,7 @@ const Tile = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: 
 );
 
 export const HeatLegend = () => (
-  <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3 text-[12px] text-muted-foreground animate-blur-in">
+  <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-3 text-[12px] text-muted-foreground animate-fade-up">
     <span>Fewer incidents</span>
     <span className="h-2 flex-1 rounded-full bg-gradient-to-r from-foreground/10 to-foreground/70" />
     <span>More</span>

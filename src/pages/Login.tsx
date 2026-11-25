@@ -57,7 +57,7 @@ const Login = () => {
     <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-background px-4 py-10 pt-safe">
       <div className="dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
 
-      <div className="relative w-full max-w-[400px] animate-blur-in">
+      <div className="relative w-full max-w-[400px] animate-fade-up">
         <div className="mb-8 flex flex-col items-center text-center">
           <span className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-foreground text-background shadow-lg">
             <Navigation className="h-6 w-6" />
@@ -93,7 +93,7 @@ const Login = () => {
           </div>
 
           {error && (
-            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl bg-foreground px-4 py-3 text-[13px] text-background animate-blur-in">
+            <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl bg-foreground px-4 py-3 text-[13px] text-background animate-fade-up">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -115,7 +115,7 @@ const Login = () => {
             </Field>
 
             {mode === 'signup' && (
-              <fieldset className="space-y-4 rounded-2xl border border-border/70 p-4 animate-blur-in">
+              <fieldset className="space-y-4 rounded-2xl border border-border/70 p-4 animate-fade-up">
                 <legend className="px-1 text-[13px] font-medium">Emergency contact</legend>
                 <p className="-mt-1 text-[13px] leading-snug text-muted-foreground">
                   They get an email when you file a report, and a note now saying they were added.

@@ -1,10 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface BottomSheetProps {
   /** Always visible, including when the sheet is collapsed to a peek. */
   header: React.ReactNode;
   children?: React.ReactNode;
+  /** Changes whenever the content is swapped, so only the content fades, not the whole sheet. */
+  contentKey: string;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   /** Map buttons that ride on top of the sheet on phones. */
@@ -12,58 +14,84 @@ interface BottomSheetProps {
   className?: string;
 }
 
-const DRAG_THRESHOLD = 56;
+const DISTANCE_THRESHOLD = 56; // px
+const FLING_VELOCITY = 0.45; // px per ms
 
 /**
  * A draggable sheet on phones and a floating side card from the md breakpoint
- * up. On phones, drag the handle (or tap it) to switch between the full sheet
- * and a peek that shows only the header.
+ * up. Dragging writes the transform straight to the element on each animation
+ * frame, so React does not re-render the sheet while a finger is moving.
  */
-const BottomSheet: React.FC<BottomSheetProps> = ({ header, children, collapsed, onCollapsedChange, fab, className }) => {
-  const [dragY, setDragY] = useState<number | null>(null);
-  const startRef = useRef<{ y: number; moved: boolean } | null>(null);
+const BottomSheet: React.FC<BottomSheetProps> = ({
+  header, children, contentKey, collapsed, onCollapsedChange, fab, className,
+}) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ startY: number; lastY: number; lastT: number; velocity: number; moved: boolean; frame: number; base: number } | null>(null);
+
+  const setOffset = (y: number | null) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (y === null) {
+      panel.style.removeProperty('transform');
+      panel.style.removeProperty('transition');
+    } else {
+      panel.style.transition = 'none';
+      panel.style.transform = `translate3d(0, ${y}px, 0)`;
+    }
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    startRef.current = { y: e.clientY, moved: false };
+    const panel = panelRef.current;
+    if (!panel) return;
+    // Where the panel sits right now, read from its transform: 0 when open, more when collapsed.
+    const current = getComputedStyle(panel).transform;
+    const base = current && current !== 'none' ? new DOMMatrixReadOnly(current).m42 : 0;
+    drag.current = { startY: e.clientY, lastY: e.clientY, lastT: e.timeStamp, velocity: 0, moved: false, frame: 0, base };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    if (!start) return;
-    const dy = e.clientY - start.y;
-    if (Math.abs(dy) > 4) start.moved = true;
-    // Resist dragging past the open position.
-    setDragY(collapsed ? Math.min(0, dy) : Math.max(-24, dy));
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.clientY - d.startY;
+    if (Math.abs(dy) > 4) d.moved = true;
+    const dt = Math.max(1, e.timeStamp - d.lastT);
+    d.velocity = 0.8 * ((e.clientY - d.lastY) / dt) + 0.2 * d.velocity;
+    d.lastY = e.clientY;
+    d.lastT = e.timeStamp;
+    if (!d.moved) return;
+    cancelAnimationFrame(d.frame);
+    // Rubber band when pulling above the open position.
+    const raw = d.base + dy;
+    const y = raw < 0 ? raw / 4 : raw;
+    d.frame = requestAnimationFrame(() => setOffset(y));
   };
 
-  const onPointerUp = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    startRef.current = null;
-    setDragY(null);
-    if (!start) return;
-    const dy = e.clientY - start.y;
-    if (!start.moved) onCollapsedChange(!collapsed);
-    else if (!collapsed && dy > DRAG_THRESHOLD) onCollapsedChange(true);
-    else if (collapsed && dy < -DRAG_THRESHOLD) onCollapsedChange(false);
+  const finish = (e: React.PointerEvent | null) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    cancelAnimationFrame(d.frame);
+    setOffset(null);
+    if (!e) return;
+    const dy = e.clientY - d.startY;
+    if (!d.moved) {
+      onCollapsedChange(!collapsed);
+    } else if (d.velocity > FLING_VELOCITY || (!collapsed && dy > DISTANCE_THRESHOLD)) {
+      onCollapsedChange(true);
+    } else if (d.velocity < -FLING_VELOCITY || (collapsed && dy < -DISTANCE_THRESHOLD)) {
+      onCollapsedChange(false);
+    }
   };
-
-  const dragging = dragY !== null;
 
   return (
-    <section
-      data-collapsed={collapsed}
-      className={cn(
-        'pointer-events-auto fixed inset-x-0 bottom-0 z-[1100] animate-sheet-up [--sheet-peek:calc(100px+env(safe-area-inset-bottom))] md:static md:animate-blur-in',
-        className,
-      )}
-      style={dragging ? { transform: `translateY(${collapsed ? `calc(100% - var(--sheet-peek) + ${dragY}px)` : `${dragY}px`})` } : undefined}
-    >
+    <section className={cn('pointer-events-auto fixed inset-x-0 bottom-0 z-[1100] md:static', className)}>
       <div
+        ref={panelRef}
         className={cn(
-          'surface-solid relative mx-auto flex max-h-[56dvh] w-full flex-col rounded-t-[28px] border-b-0 pb-safe md:max-h-full md:min-h-0 md:rounded-[28px] md:border-b',
-          !dragging && 'transition-transform duration-500 ease-spring',
-          collapsed && !dragging && 'max-md:translate-y-[calc(100%-var(--sheet-peek))]',
+          'sheet-panel surface-solid relative mx-auto flex max-h-[56dvh] w-full flex-col rounded-t-[28px] border-b-0 pb-safe',
+          'md:max-h-full md:min-h-0 md:rounded-[28px] md:border-b',
+          collapsed && 'sheet-collapsed',
         )}
       >
         {fab && <div className="absolute bottom-full right-3 mb-3 flex flex-col gap-2 md:hidden">{fab}</div>}
@@ -73,15 +101,18 @@ const BottomSheet: React.FC<BottomSheetProps> = ({ header, children, collapsed, 
           aria-expanded={!collapsed}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={() => { startRef.current = null; setDragY(null); }}
-          className="flex h-6 w-full shrink-0 touch-none cursor-grab items-center justify-center active:cursor-grabbing md:hidden"
+          onPointerUp={finish}
+          onPointerCancel={() => finish(null)}
+          className="flex h-7 w-full shrink-0 touch-none cursor-grab items-center justify-center active:cursor-grabbing md:hidden"
         >
           <span className="h-1.5 w-10 rounded-full bg-muted-foreground/40" />
         </button>
-        <div className="shrink-0 px-5 pb-3 md:pt-5">{header}</div>
+        <div key={`h-${contentKey}`} className="fade-swap shrink-0 px-5 pb-3 md:pt-5">{header}</div>
         {children && (
-          <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 transition-opacity duration-300', collapsed && 'max-md:opacity-0')}>
+          <div
+            key={`b-${contentKey}`}
+            className="sheet-body fade-swap min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5"
+          >
             {children}
           </div>
         )}

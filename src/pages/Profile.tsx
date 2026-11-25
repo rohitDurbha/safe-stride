@@ -46,7 +46,7 @@ const Profile = () => {
 
   return (
     <main className="min-h-[100dvh] bg-background pt-safe">
-      <header className="sticky top-0 z-10 border-b border-border/70 bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-10 border-b border-border/70 bg-background/95 md:bg-background/80 md:backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-xl items-center gap-2 px-3">
           <Button asChild variant="ghost" size="icon" aria-label="Back to the map">
             <Link to="/home"><ArrowLeft className="h-5 w-5" /></Link>
@@ -55,7 +55,7 @@ const Profile = () => {
         </div>
       </header>
 
-      <div className="mx-auto max-w-xl px-4 pb-16 pt-8 animate-blur-in">
+      <div className="mx-auto max-w-xl px-4 pb-16 pt-8 animate-fade-up">
         <div className="mb-8 flex items-center gap-4">
           <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-foreground text-[20px] font-semibold text-background">
             {initials(user)}

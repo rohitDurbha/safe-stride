@@ -101,8 +101,10 @@
 
 @layer components {
   /* A floating surface over the map, frosted like the Google Maps panels. */
+  /* Phones get a near-opaque fill instead of a backdrop blur, which is costly
+     to redraw on Android GPUs every time the map underneath moves. */
   .surface {
-    @apply border border-border/70 bg-card/90 text-card-foreground backdrop-blur-xl;
+    @apply border border-border/70 bg-card/95 text-card-foreground md:bg-card/85 md:backdrop-blur-xl;
     box-shadow: var(--elevation);
   }
 
@@ -154,6 +156,70 @@
   }
 }
 
+/* ===== Bottom sheet ===== */
+
+/* Only transform and opacity animate, so the browser can run every frame on
+   the compositor. One easing curve (iOS and Material both use a fast start
+   and a long, soft landing) keeps every motion in the app consistent. */
+.sheet-panel {
+  --sheet-peek: calc(100px + env(safe-area-inset-bottom));
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+  animation: sheet-enter 360ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+
+.sheet-body {
+  transition: opacity 180ms ease-out;
+}
+
+@media (max-width: 767px) {
+  .sheet-collapsed {
+    transform: translate3d(0, calc(100% - var(--sheet-peek)), 0);
+  }
+
+  .sheet-collapsed .sheet-body {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet-panel {
+    animation-name: fade-up;
+    animation-duration: 220ms;
+    will-change: auto;
+  }
+}
+
+/* Meter bars grow from the left using a transform rather than a width change. */
+.meter-fill {
+  animation: meter-grow 600ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+
+@keyframes meter-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Content swapped inside the sheet fades up a few pixels instead of the whole sheet moving. */
+.fade-swap {
+  animation: fade-up 200ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes sheet-enter {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+}
+
 /* ===== Leaflet, restyled to match ===== */
 
 .leaflet-container {
@@ -162,7 +228,7 @@
 }
 
 .leaflet-control-attribution {
-  @apply rounded-tl-lg !bg-card/80 !text-[10px] !text-muted-foreground backdrop-blur;
+  @apply rounded-tl-lg !bg-card/85 !text-[10px] !text-muted-foreground;
 }
 
 .leaflet-control-attribution a {

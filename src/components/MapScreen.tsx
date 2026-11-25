@@ -103,16 +103,24 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
     };
   }, [map, route, scheme]);
 
-  // Frame a new route so it is not hidden behind the panels.
+  // Frame a new route so it is not hidden behind the panels. The zoom starts
+  // after the route card has painted, so the two never share a frame.
   useEffect(() => {
     if (!map || !route) return;
     const desktop = isDesktop();
-    map.flyToBounds(routeBounds(route.points), {
-      paddingTopLeft: desktop ? [460, 60] : [40, 110],
-      paddingBottomRight: desktop ? [80, 60] : [40, Math.round(window.innerHeight * 0.56) + 24],
-      duration: 0.8,
-      maxZoom: 17,
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        // A plain pan and zoom. flyToBounds zooms out and back in, which loads
+        // three sets of tiles and stutters on slower phones.
+        map.fitBounds(routeBounds(route.points), {
+          paddingTopLeft: desktop ? [460, 60] : [40, 140],
+          paddingBottomRight: desktop ? [80, 60] : [40, Math.round(window.innerHeight * 0.56) + 24],
+          maxZoom: 17,
+          animate: true,
+        });
+      });
     });
+    return () => cancelAnimationFrame(frame);
   }, [map, route]);
 
   // Refresh the account details, which also checks that the token still works.
@@ -159,7 +167,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
         const here: LatLon = [position.coords.latitude, position.coords.longitude];
         saveLocation(here);
         setUserLocation(here);
-        mapInstanceRef.current?.flyTo(here, Math.max(mapInstanceRef.current.getZoom(), 16), { duration: 0.8 });
+        mapInstanceRef.current?.setView(here, Math.max(mapInstanceRef.current.getZoom(), 16), { animate: true });
       },
       () => {
         setIsLocating(false);
@@ -271,7 +279,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
 
         {!editing && (
           <BottomSheet
-            key={isRouting ? 'routing' : route ? 'route' : panel}
+            contentKey={isRouting ? 'routing' : route ? 'route' : panel}
             header={sheetHeader}
             collapsed={sheetCollapsed}
             onCollapsedChange={setSheetCollapsed}
