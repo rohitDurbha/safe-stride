@@ -10,6 +10,7 @@ import type { RouteSummary } from '@/lib/routeSummary';
 import { clearSession, displayName, fetchProfile, saveSession } from '@/lib/session';
 import { readStoredUser, type StoredUser } from '@/lib/storedUser';
 import { useColorScheme } from '@/lib/theme';
+import { CARTO_API_KEY, type MapStyle, minimalAvailable, readMapStyle, saveMapStyle } from '@/lib/tiles';
 import { cn } from '@/lib/utils';
 import AccountButton from './map/AccountButton';
 import BottomSheet from './map/BottomSheet';
@@ -55,6 +56,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
   const [isRouting, setIsRouting] = useState(false);
   const [panel, setPanel] = useState<'explore' | 'report'>('explore');
   const [showHeatmap, setShowHeatmap] = useState(initialHeatmap);
+  const [mapStyle, setMapStyle] = useState<MapStyle>(() => (minimalAvailable(CARTO_API_KEY) ? readMapStyle() : 'detailed'));
   const [sheetCollapsed, setSheetCollapsed] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -72,15 +74,15 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
     setMap(created);
   }, [startCenter]);
 
-  // CARTO's grey basemaps (or greyed OpenStreetMap tiles without a key),
-  // swapped when the system switches between light and dark.
+  // The detailed OpenStreetMap map or CARTO's minimal one, swapped when the
+  // style changes or the system switches between light and dark.
   useEffect(() => {
     if (!map) return;
-    const tiles = createTiles(scheme).addTo(map);
+    const tiles = createTiles(scheme, mapStyle).addTo(map);
     return () => {
       tiles.remove();
     };
-  }, [map, scheme]);
+  }, [map, scheme, mapStyle]);
 
   // Keep the map sized to the window, including mobile browser bars.
   useEffect(() => {
@@ -239,6 +241,8 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
         onReport={() => { setPanel('report'); setSheetCollapsed(false); }}
         onLocate={locateUser}
         isLocating={isLocating}
+        mapStyle={minimalAvailable(CARTO_API_KEY) ? mapStyle : null}
+        onMapStyle={(style) => { saveMapStyle(style); setMapStyle(style); }}
       />
     );
   }

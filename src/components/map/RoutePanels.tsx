@@ -3,6 +3,7 @@ import { Clock, Footprints, Layers, LocateFixed, Mic, Moon, Pencil, ShieldCheck,
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RouteSummary, routeStats } from '@/lib/routeSummary';
+import type { MapStyle } from '@/lib/tiles';
 
 /* ---------- Route found ---------- */
 
@@ -129,9 +130,12 @@ interface ExploreBodyProps {
   onReport: () => void;
   onLocate: () => void;
   isLocating: boolean;
+  /** The current map style, or null when only the detailed map is available. */
+  mapStyle: MapStyle | null;
+  onMapStyle: (style: MapStyle) => void;
 }
 
-export const ExploreBody = ({ showHeatmap, onToggleHeatmap, onReport, onLocate, isLocating }: ExploreBodyProps) => (
+export const ExploreBody = ({ showHeatmap, onToggleHeatmap, onReport, onLocate, isLocating, mapStyle, onMapStyle }: ExploreBodyProps) => (
   <div className="space-y-4">
     <div className="grid grid-cols-3 gap-2">
       <Tile icon={<Layers />} label="Heatmap" active={showHeatmap} onClick={onToggleHeatmap} />
@@ -139,6 +143,7 @@ export const ExploreBody = ({ showHeatmap, onToggleHeatmap, onReport, onLocate, 
       <Tile icon={<LocateFixed className={cn(isLocating && 'animate-pulse')} />} label="Locate me" onClick={onLocate} />
     </div>
     {showHeatmap && <HeatLegend />}
+    {mapStyle && <MapStylePicker value={mapStyle} onChange={onMapStyle} />}
     <div className="flex items-start gap-3 rounded-2xl border border-border/70 p-4">
       <Footprints className="mt-0.5 h-[18px] w-[18px] shrink-0" />
       <p className="text-[13px] leading-relaxed text-muted-foreground">
@@ -169,5 +174,39 @@ export const HeatLegend = () => (
     <span>Fewer incidents</span>
     <span className="h-2 flex-1 rounded-full bg-gradient-to-r from-foreground/10 to-foreground/70" />
     <span>More</span>
+  </div>
+);
+
+const MAP_STYLES: { value: MapStyle; label: string; hint: string }[] = [
+  { value: 'detailed', label: 'Detailed', hint: 'Shops, businesses and building names' },
+  { value: 'minimal', label: 'Minimal', hint: 'Streets and neighbourhoods only' },
+];
+
+const MapStylePicker = ({ value, onChange }: { value: MapStyle; onChange: (style: MapStyle) => void }) => (
+  <div className="space-y-2">
+    <p className="px-1 text-[12px] font-medium uppercase tracking-wider text-muted-foreground">Map style</p>
+    <div className="relative grid grid-cols-2 rounded-full bg-muted p-1" role="radiogroup" aria-label="Map style">
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-card shadow-sm transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]',
+          value === 'minimal' && 'translate-x-full',
+        )}
+      />
+      {MAP_STYLES.map((s) => (
+        <button
+          key={s.value}
+          type="button"
+          role="radio"
+          aria-checked={value === s.value}
+          title={s.hint}
+          onClick={() => onChange(s.value)}
+          className={cn('relative z-10 h-9 rounded-full text-[13px] font-medium transition-colors', value === s.value ? 'text-foreground' : 'text-muted-foreground')}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+    <p className="px-1 text-[12px] text-muted-foreground">{MAP_STYLES.find((s) => s.value === value)?.hint}</p>
   </div>
 );

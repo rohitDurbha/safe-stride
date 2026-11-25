@@ -1,7 +1,7 @@
 import L from "leaflet";
 import type { LatLon } from "@/lib/mapSetup";
 import { cssColor, type ColorScheme } from "@/lib/theme";
-import { CARTO_API_KEY, tileSource } from "@/lib/tiles";
+import { CARTO_API_KEY, MAP_MAX_ZOOM, type MapStyle, tileSource } from "@/lib/tiles";
 
 export function createMap(element: HTMLElement, center: LatLon): L.Map {
   const map = L.map(element, {
@@ -10,18 +10,20 @@ export function createMap(element: HTMLElement, center: LatLon): L.Map {
     doubleClickZoom: true,
     scrollWheelZoom: true,
     zoomSnap: 0.5,
+    maxZoom: MAP_MAX_ZOOM,
     tap: false,
   } as L.MapOptions).setView(center, 15);
   map.attributionControl.setPrefix(false);
   return map;
 }
 
-export function createTiles(scheme: ColorScheme): L.TileLayer {
-  const source = tileSource(scheme, CARTO_API_KEY);
+export function createTiles(scheme: ColorScheme, style: MapStyle): L.TileLayer {
+  const source = tileSource(scheme, style, CARTO_API_KEY);
   return L.tileLayer(source.url, {
     attribution: source.attribution,
     subdomains: source.subdomains ?? "abc",
-    maxZoom: source.maxZoom,
+    maxNativeZoom: source.maxNativeZoom,
+    maxZoom: MAP_MAX_ZOOM,
     className: source.className,
   });
 }
