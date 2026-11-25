@@ -71,8 +71,9 @@ Everything runs on one free Vercel project with no payment method attached. The 
 | `VERCEL_TOKEN` | Vercel token for the deploy |
 | `MONGO_URI`, `SECRET_KEY` | Required by the backend, so the deploy stops when either is missing |
 | `GOOGLE_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD` | Optional, passed to the function when present |
+| `VITE_CARTO_API_KEY` | Optional CARTO basemaps key for the grey map tiles. It is built into the page, so restrict it to the site's host in the CARTO dashboard. Free for non-commercial use up to 5 million tile requests a month |
 
-These values are handed to the function as runtime settings, so none of them is ever built into the browser code. The only `VITE_` setting is `VITE_API_URL`, which is the public path `/api`. `.vercelignore` keeps every `.env` file out of the upload.
+These values are handed to the function as runtime settings, so none of them is ever built into the browser code. The `VITE_` settings are `VITE_API_URL`, which is the public path `/api`, and the CARTO key, which every tile request shows anyway. `.vercelignore` keeps every `.env` file out of the upload.
 
 MongoDB Atlas has to accept connections from anywhere (`0.0.0.0/0` under Network Access), because Vercel functions have no fixed IP address. Each request to `/api` shows up in the Runtime Logs of the Vercel project. The Site logs workflow in the Actions tab prints recent backend errors and any requests probing for files such as `/.env`, without opening the dashboard.
 
@@ -90,7 +91,7 @@ When someone sends a spoken report, `backend/report_classifier.py` asks Gemini t
 
 ## Interface
 
-The app is one full screen map in the style of Google Maps, built mobile first. Search sits in a floating bar at the top, and route details, the heatmap and voice reports live in a bottom sheet that can be dragged to a peek on phones and becomes a side panel on wider screens. Everything is monochrome, the map uses the standard OpenStreetMap tiles turned grey with a CSS filter (and inverted in dark mode), so no map key is needed, and the whole interface follows the system light or dark setting. The design tokens live in `src/index.css` and the map screen in `src/components/MapScreen.tsx`.
+The app is one full screen map in the style of Google Maps, built mobile first. Search sits in a floating bar at the top, and route details, the heatmap and voice reports live in a bottom sheet that can be dragged to a peek on phones and becomes a side panel on wider screens. Everything is monochrome, the map uses CARTO's grey Positron and Dark Matter basemaps when the `VITE_CARTO_API_KEY` secret is set (and OpenStreetMap tiles turned grey by a CSS filter when it is not), and the whole interface follows the system light or dark setting. The design tokens live in `src/index.css` and the map screen in `src/components/MapScreen.tsx`.
 
 ## What technologies are used for this project?
 

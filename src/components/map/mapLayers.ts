@@ -1,13 +1,7 @@
 import L from "leaflet";
 import type { LatLon } from "@/lib/mapSetup";
-import { cssColor } from "@/lib/theme";
-
-// The standard OpenStreetMap tiles need no key. index.css turns them grey in
-// light mode and inverts them for dark mode, so one tile source serves both.
-export const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-
-const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+import { cssColor, type ColorScheme } from "@/lib/theme";
+import { CARTO_API_KEY, tileSource } from "@/lib/tiles";
 
 export function createMap(element: HTMLElement, center: LatLon): L.Map {
   const map = L.map(element, {
@@ -22,11 +16,13 @@ export function createMap(element: HTMLElement, center: LatLon): L.Map {
   return map;
 }
 
-export function createTiles(): L.TileLayer {
-  return L.tileLayer(TILE_URL, {
-    attribution: ATTRIBUTION,
-    maxZoom: 19,
-    className: "mono-tiles",
+export function createTiles(scheme: ColorScheme): L.TileLayer {
+  const source = tileSource(scheme, CARTO_API_KEY);
+  return L.tileLayer(source.url, {
+    attribution: source.attribution,
+    subdomains: source.subdomains ?? "abc",
+    maxZoom: source.maxZoom,
+    className: source.className,
   });
 }
 

@@ -72,14 +72,15 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
     setMap(created);
   }, [startCenter]);
 
-  // OpenStreetMap tiles, made grey (or inverted in dark mode) by index.css.
+  // CARTO's grey basemaps (or greyed OpenStreetMap tiles without a key),
+  // swapped when the system switches between light and dark.
   useEffect(() => {
     if (!map) return;
-    const tiles = createTiles().addTo(map);
+    const tiles = createTiles(scheme).addTo(map);
     return () => {
       tiles.remove();
     };
-  }, [map]);
+  }, [map, scheme]);
 
   // Keep the map sized to the window, including mobile browser bars.
   useEffect(() => {

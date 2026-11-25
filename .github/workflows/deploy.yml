@@ -34,6 +34,9 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+      # The CARTO basemap key ends up in the browser's tile requests, so it is
+      # a build setting. Restrict it to the site's host in the CARTO dashboard.
+      CARTO_KEY: ${{ secrets.VITE_CARTO_API_KEY || secrets.CARTO_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Check for the required secrets
@@ -97,9 +100,16 @@ jobs:
           for name in GOOGLE_API_KEY SMTP_USER SMTP_PASSWORD GEMINI_MODEL; do
             if [ -n "${!name}" ]; then envs+=(--env "$name=${!name}"); fi
           done
+          builds=(--build-env VITE_API_URL=/api)
+          if [ -n "$CARTO_KEY" ]; then
+            builds+=(--build-env "VITE_CARTO_API_KEY=$CARTO_KEY")
+            echo "Map tiles: CARTO basemaps"
+          else
+            echo "::warning::No VITE_CARTO_API_KEY secret, so the map uses grey OpenStreetMap tiles"
+          fi
           for attempt in 1 2 3; do
             if npx --yes vercel@63.1.0 deploy --prod --yes \
-                --build-env VITE_API_URL=/api "${envs[@]}" > deploy-url.txt; then
+                "${builds[@]}" "${envs[@]}" > deploy-url.txt; then
               break
             fi
             if [ "$attempt" = 3 ]; then exit 1; fi
