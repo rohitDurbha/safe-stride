@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Layers, LocateFixed, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -10,13 +8,13 @@ import type { RouteSummary } from '@/lib/routeSummary';
 import { clearSession, displayName, fetchProfile, saveSession } from '@/lib/session';
 import { readStoredUser, type StoredUser } from '@/lib/storedUser';
 import { useColorScheme } from '@/lib/theme';
-import { CARTO_API_KEY, type MapStyle, minimalAvailable, readMapStyle, saveMapStyle } from '@/lib/tiles';
+import { type MapStyle, loadMonochromeStyle, readMapStyle, saveMapStyle } from '@/lib/mapStyle';
 import { cn } from '@/lib/utils';
 import AccountButton from './map/AccountButton';
 import BottomSheet from './map/BottomSheet';
 import HeatmapLayer from './map/HeatmapLayer';
 import MapMarker from './map/MapMarker';
-import { createMap, createTiles, routeBounds, routeLayer } from './map/mapLayers';
+import { MapInstance, createMap, routeBounds, showRoute, toLngLat } from './map/mapLayers';
 import { ReportBody, ReportHeader } from './map/ReportPanel';
 import { ExploreBody, ExploreHeader, RouteBody, RouteHeader, RoutingBody, RoutingHeader } from './map/RoutePanels';
 import SearchPanel, { DirectionsValue } from './map/SearchPanel';
@@ -42,8 +40,11 @@ const isDesktop = () => typeof window !== 'undefined' && window.matchMedia('(min
 
 const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
   const scheme = useColorScheme();
-  const mapInstanceRef = useRef<L.Map | null>(null);
-  const [map, setMap] = useState<L.Map | null>(null);
+  const mapInstanceRef = useRef<MapInstance | null>(null);
+  const [map, setMap] = useState<MapInstance | null>(null);
+  // Bumped each time a base style finishes loading, because that clears added layers.
+  const [styleRevision, setStyleRevision] = useState(0);
+  const [startScheme] = useState(scheme);
 
   const [userLocation, setUserLocation] = useState<LatLon>(() => initialLocation());
   const [startCenter] = useState<LatLon>(userLocation);
@@ -56,7 +57,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
   const [isRouting, setIsRouting] = useState(false);
   const [panel, setPanel] = useState<'explore' | 'report'>('explore');
   const [showHeatmap, setShowHeatmap] = useState(initialHeatmap);
-  const [mapStyle, setMapStyle] = useState<MapStyle>(() => (minimalAvailable(CARTO_API_KEY) ? readMapStyle() : 'detailed'));
+  const [mapStyle, setMapStyle] = useState<MapStyle>(() => readMapStyle());
   const [sheetCollapsed, setSheetCollapsed] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -68,42 +69,30 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
       setMap(null);
     }
     if (!element) return;
-    const created = createMap(element, startCenter);
-    created.attributionControl.setPosition('topright');
+    const created = createMap(element, startCenter, startScheme);
+    created.on('style.load', () => setStyleRevision((n) => n + 1));
     mapInstanceRef.current = created;
     setMap(created);
-  }, [startCenter]);
+  }, [startCenter, startScheme]);
 
-  // The detailed OpenStreetMap map or CARTO's minimal one, swapped when the
-  // style changes or the system switches between light and dark.
+  // The OpenFreeMap style in the app's monochrome colours, swapped when the
+  // map style changes or the system switches between light and dark.
   useEffect(() => {
     if (!map) return;
-    const tiles = createTiles(scheme, mapStyle).addTo(map);
+    let active = true;
+    loadMonochromeStyle(mapStyle, scheme).then((style) => {
+      if (active) map.setStyle(style as Parameters<MapInstance['setStyle']>[0], { diff: false });
+    });
     return () => {
-      tiles.remove();
+      active = false;
     };
   }, [map, scheme, mapStyle]);
 
-  // Keep the map sized to the window, including mobile browser bars.
+  // Draw the route in the current theme's colours, again after each style load.
   useEffect(() => {
-    if (!map) return;
-    const resize = () => map.invalidateSize();
-    const timer = setTimeout(resize, 150);
-    window.addEventListener('resize', resize);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', resize);
-    };
-  }, [map]);
-
-  // Draw the route in the current theme's colours.
-  useEffect(() => {
-    if (!map || !route) return;
-    const layer = routeLayer(route.points).addTo(map);
-    return () => {
-      layer.remove();
-    };
-  }, [map, route, scheme]);
+    if (!map || !route || styleRevision === 0) return;
+    return showRoute(map, route.points);
+  }, [map, route, scheme, styleRevision]);
 
   // Frame a new route so it is not hidden behind the panels. The zoom starts
   // after the route card has painted, so the two never share a frame.
@@ -112,13 +101,12 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
     const desktop = isDesktop();
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
-        // A plain pan and zoom. flyToBounds zooms out and back in, which loads
-        // three sets of tiles and stutters on slower phones.
         map.fitBounds(routeBounds(route.points), {
-          paddingTopLeft: desktop ? [460, 60] : [40, 140],
-          paddingBottomRight: desktop ? [80, 60] : [40, Math.round(window.innerHeight * 0.56) + 24],
+          padding: desktop
+            ? { top: 60, left: 460, right: 80, bottom: 60 }
+            : { top: 140, left: 40, right: 40, bottom: Math.round(window.innerHeight * 0.56) + 24 },
           maxZoom: 17,
-          animate: true,
+          duration: 700,
         });
       });
     });
@@ -169,7 +157,8 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
         const here: LatLon = [position.coords.latitude, position.coords.longitude];
         saveLocation(here);
         setUserLocation(here);
-        mapInstanceRef.current?.setView(here, Math.max(mapInstanceRef.current.getZoom(), 16), { animate: true });
+        const m = mapInstanceRef.current;
+        m?.easeTo({ center: toLngLat(here), zoom: Math.max(m.getZoom(), 16), duration: 600 });
       },
       () => {
         setIsLocating(false);
@@ -241,7 +230,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
         onReport={() => { setPanel('report'); setSheetCollapsed(false); }}
         onLocate={locateUser}
         isLocating={isLocating}
-        mapStyle={minimalAvailable(CARTO_API_KEY) ? mapStyle : null}
+        mapStyle={mapStyle}
         onMapStyle={(style) => { saveMapStyle(style); setMapStyle(style); }}
       />
     );
@@ -263,7 +252,7 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
       <div ref={attachMap} id="map-container" className="absolute inset-0 z-0" aria-label="Map" />
 
       {map && <MapMarker position={userLocation} map={map} />}
-      {map && showHeatmap && <HeatmapLayer map={map} scheme={scheme} />}
+      {map && showHeatmap && styleRevision > 0 && <HeatmapLayer map={map} scheme={scheme} styleRevision={styleRevision} />}
 
       {/* Search on top and the panel below it. On phones these split to the top and bottom edges. */}
       <div className="contents md:pointer-events-none md:absolute md:bottom-4 md:left-4 md:top-4 md:z-[1000] md:flex md:w-[400px] md:flex-col md:gap-3">
@@ -299,11 +288,11 @@ const MapScreen: React.FC<MapScreenProps> = ({ initialHeatmap = false }) => {
       <div className="absolute bottom-6 right-4 z-[1000] hidden flex-col gap-2 md:flex">
         {mapButtons}
         <div className="surface mt-2 flex flex-col overflow-hidden rounded-full">
-          <button type="button" aria-label="Zoom in" onClick={() => map?.zoomIn()} className="grid h-12 w-12 place-items-center transition-colors hover:bg-accent">
+          <button type="button" aria-label="Zoom in" onClick={() => map?.zoomIn({ duration: 250 })} className="grid h-12 w-12 place-items-center transition-colors hover:bg-accent">
             <Plus className="h-5 w-5" />
           </button>
           <div className="mx-3 h-px bg-border" />
-          <button type="button" aria-label="Zoom out" onClick={() => map?.zoomOut()} className="grid h-12 w-12 place-items-center transition-colors hover:bg-accent">
+          <button type="button" aria-label="Zoom out" onClick={() => map?.zoomOut({ duration: 250 })} className="grid h-12 w-12 place-items-center transition-colors hover:bg-accent">
             <Minus className="h-5 w-5" />
           </button>
         </div>

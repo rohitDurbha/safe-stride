@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import AppRoutes, { APP_ROUTES } from "./routes";
 
-// The real pages pull in Leaflet, which needs a browser, so each
+// The real pages pull in MapLibre, which needs a browser, so each
 // one is replaced by a stub that only prints its name.
 const stubPage = vi.hoisted(
   () => (name: string) => ({ default: () => <main>{`${name} page`}</main> }),

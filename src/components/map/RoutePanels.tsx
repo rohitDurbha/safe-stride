@@ -3,7 +3,7 @@ import { Clock, Footprints, Layers, LocateFixed, Mic, Moon, Pencil, ShieldCheck,
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { RouteSummary, routeStats } from '@/lib/routeSummary';
-import type { MapStyle } from '@/lib/tiles';
+import type { MapStyle } from '@/lib/mapStyle';
 
 /* ---------- Route found ---------- */
 
@@ -130,8 +130,7 @@ interface ExploreBodyProps {
   onReport: () => void;
   onLocate: () => void;
   isLocating: boolean;
-  /** The current map style, or null when only the detailed map is available. */
-  mapStyle: MapStyle | null;
+  mapStyle: MapStyle;
   onMapStyle: (style: MapStyle) => void;
 }
 
@@ -143,7 +142,7 @@ export const ExploreBody = ({ showHeatmap, onToggleHeatmap, onReport, onLocate, 
       <Tile icon={<LocateFixed className={cn(isLocating && 'animate-pulse')} />} label="Locate me" onClick={onLocate} />
     </div>
     {showHeatmap && <HeatLegend />}
-    {mapStyle && <MapStylePicker value={mapStyle} onChange={onMapStyle} />}
+    <MapStylePicker value={mapStyle} onChange={onMapStyle} />
     <div className="flex items-start gap-3 rounded-2xl border border-border/70 p-4">
       <Footprints className="mt-0.5 h-[18px] w-[18px] shrink-0" />
       <p className="text-[13px] leading-relaxed text-muted-foreground">
@@ -179,7 +178,7 @@ export const HeatLegend = () => (
 
 const MAP_STYLES: { value: MapStyle; label: string; hint: string }[] = [
   { value: 'detailed', label: 'Detailed', hint: 'Shops, businesses and building names' },
-  { value: 'minimal', label: 'Minimal', hint: 'Streets and neighbourhoods only' },
+  { value: 'minimal', label: 'Minimal', hint: 'Streets and neighbourhood names only' },
 ];
 
 const MapStylePicker = ({ value, onChange }: { value: MapStyle; onChange: (style: MapStyle) => void }) => (
