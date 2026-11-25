@@ -85,6 +85,14 @@
     height: 100%;
   }
 
+  /* Like other map apps, pinching zooms the map, never the page. Panels can
+     still scroll, and Leaflet takes every gesture on the map itself. Safari
+     ignores user-scalable=no in the viewport tag, so this rule covers it. */
+  html,
+  body {
+    touch-action: pan-x pan-y;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

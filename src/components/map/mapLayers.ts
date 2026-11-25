@@ -11,8 +11,7 @@ export function createMap(element: HTMLElement, center: LatLon): L.Map {
     scrollWheelZoom: true,
     zoomSnap: 0.5,
     maxZoom: MAP_MAX_ZOOM,
-    tap: false,
-  } as L.MapOptions).setView(center, 15);
+  }).setView(center, 15);
   map.attributionControl.setPrefix(false);
   return map;
 }
