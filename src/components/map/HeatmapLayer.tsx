@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import L from 'leaflet';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { apiUrl } from '@/lib/api';
 import { cssColor, type ColorScheme } from '@/lib/theme';
 

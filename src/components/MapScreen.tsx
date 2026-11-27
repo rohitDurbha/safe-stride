@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Layers, LocateFixed, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { apiUrl, readToken } from '@/lib/api';
 import { LatLon, initialLocation, routeQuery, saveLocation } from '@/lib/mapSetup';
 import type { RouteSummary } from '@/lib/routeSummary';

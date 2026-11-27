@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, Loader2, LogIn, MapPin, Mic, Square, UserRound } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { apiUrl, jsonHeaders, readToken } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { LatLon } from '@/lib/mapSetup';

@@ -1,19 +1,11 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CSSProperties } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { LEAFLET_MAX_Z, TOAST_Z } from "@/lib/layers";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
-import { Toaster } from "@/components/ui/sonner";
-
-// Sonner renders nothing until a toast exists, so swap in a stand-in that
-// draws its container with the style it was given.
-vi.mock("sonner", () => ({
-  Toaster: ({ style }: { style?: CSSProperties }) => <ol data-sonner-toaster style={style} />,
-  toast: () => undefined,
-}));
+import { Toaster } from "@/components/ui/toaster";
 
 const require = createRequire(import.meta.url);
 
@@ -46,7 +38,8 @@ describe("toast layer", () => {
     expect(html).not.toContain("z-[100]");
   });
 
-  it("is applied to the sonner toaster", () => {
+  it("is applied by the app's only toaster", () => {
+    // App.tsx mounts this Toaster, which is the one toast() reports to.
     const html = renderToStaticMarkup(<Toaster />);
     expect(renderedZIndex(html)).toBe(TOAST_Z);
   });
